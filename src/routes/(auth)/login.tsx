@@ -31,7 +31,7 @@ function RouteComponent() {
         <div className="flex flex-col items-center mb-8">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingBag className="size-8 text-primary" />
-            <h1 className="text-3xl font-bold">SuaVitrine</h1>
+            <h1 className="text-3xl font-bold">SuaVitrine (BETA)</h1>
           </div>
           <p className="text-muted-foreground text-center">
             Sua vitrine digital completa
