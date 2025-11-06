@@ -65,6 +65,31 @@ git subtree pull --prefix=landing landing main --squash
 
 Isso garante que você esteja com a versão mais recente de cada projeto.
 
+### 2.1. Enviar Mudanças para os Repositórios Originais
+
+Para enviar mudanças deste repositório para os repositórios originais (backend, frontend, landing):
+
+**Importante:** Sempre sincronize primeiro para evitar conflitos:
+
+```bash
+# Para backend
+git fetch backend
+git subtree pull --prefix=backend backend main --squash
+git subtree push --prefix=backend backend main
+
+# Para frontend
+git fetch frontend
+git subtree pull --prefix=frontend frontend main --squash
+git subtree push --prefix=frontend frontend main
+
+# Para landing
+git fetch landing
+git subtree pull --prefix=landing landing main --squash
+git subtree push --prefix=landing landing main
+```
+
+**Nota:** Se o `git subtree push` falhar com erro de "rejected", significa que há commits no remoto que você não tem localmente. Nesse caso, o `git subtree pull` acima já resolve o problema antes do push.
+
 ### 3. Subir os Containers
 
 No diretório raiz, rode:
