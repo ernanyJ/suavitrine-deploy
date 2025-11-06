@@ -20,7 +20,8 @@ jobs:
           username: ernany
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/suavitrine/frontend
-            git pull origin main
+            cd ~/suavitrine
+            git fetch frontend
+            git subtree pull --prefix=frontend frontend main --squash
             docker compose build frontend
             docker compose up -d frontend
