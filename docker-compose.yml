@@ -24,16 +24,14 @@ services:
     restart: unless-stopped
 
   landing:
-    image: node:20-alpine
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
     container_name: suavitrine-landing
-    working_dir: /app
-    volumes:
-      - ./landing:/app
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-    command: npm start
     restart: unless-stopped
 
   nginx:
