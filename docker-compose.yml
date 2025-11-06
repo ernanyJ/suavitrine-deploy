@@ -2,7 +2,9 @@ version: '3.9'
 
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: suavitrine-backend
     expose:
       - "8080"
@@ -22,10 +24,11 @@ services:
     restart: unless-stopped
 
   landing:
-    build:
-      context: ./landing
-      dockerfile: Dockerfile
+    image: node:20-alpine
     container_name: suavitrine-landing
+    working_dir: /app
+    volumes:
+      - ./landing:/app
     expose:
       - "3000"
     environment:
