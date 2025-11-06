@@ -1,0 +1,54 @@
+services:
+  # postgres:
+  #   image: postgres:16
+  #   container_name: postgres-suavitrine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5432:5432"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: minio-suavitrine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   command: server /data --console-address ":9001"
+  #   volumes:
+  #     - minio_data:/data
+  #   environment:
+  #     MINIO_ROOT_USER: minio
+  #     MINIO_ROOT_PASSWORD: minio123
+  #   env_file:
+  #     - .env
+
+  # adminer:p
+  #   image: adminer
+  #   container_name: adminer-suavitrine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8089:8080"
+  #   depends_on:
+  #     - postgres
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-suavitrine
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    # depends_on:
+    #   - postgres
+    #   - minio
+
+volumes:
+  postgres_data:
+  minio_data:
