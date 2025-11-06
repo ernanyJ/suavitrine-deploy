@@ -34,7 +34,7 @@ function RouteComponent() {
             <h1 className="text-3xl font-bold">SuaVitrine (BETA)</h1>
           </div>
           <p className="text-muted-foreground text-center">
-            Sua vitrine digital completa
+            Sua vitrine digital completa!
           </p>
         </div>
 
