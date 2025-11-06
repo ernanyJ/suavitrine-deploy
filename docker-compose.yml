@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./backend
+    container_name: suavitrine-backend
+    expose:
+      - "8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    container_name: suavitrine-frontend
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+    expose:
+      - "80"
+    restart: unless-stopped
+
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    container_name: suavitrine-landing
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+    command: npm start
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    container_name: suavitrine-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - /etc/letsencrypt/live:/etc/letsencrypt/live:ro
+      - /etc/letsencrypt/archive:/etc/letsencrypt/archive:ro
+    depends_on:
+      - backend
+      - frontend
+      - landing
+    restart: unless-stopped
+
