@@ -1,0 +1,2 @@
+ALTER TABLE "store" ADD COLUMN IF NOT EXISTS banner_url VARCHAR(500);
+

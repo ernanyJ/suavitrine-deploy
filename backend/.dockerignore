@@ -1,0 +1,53 @@
+# Build output
+target/
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+.project
+.classpath
+.settings/
+.sts4-cache/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+.mvn/
+
+# Documentation
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+
+# Docker files (avoid recursion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+src/test/
+
