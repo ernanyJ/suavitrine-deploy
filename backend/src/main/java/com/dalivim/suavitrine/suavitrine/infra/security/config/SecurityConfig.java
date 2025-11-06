@@ -1,7 +1,10 @@
 package com.dalivim.suavitrine.suavitrine.infra.security.config;
 
 import com.dalivim.suavitrine.suavitrine.infra.security.filters.JwtAuthenticationFilter;
+import com.dalivim.suavitrine.suavitrine.infra.security.handlers.CustomAccessDeniedHandler;
+import com.dalivim.suavitrine.suavitrine.infra.security.handlers.CustomAuthenticationEntryPoint;
 import com.dalivim.suavitrine.suavitrine.repositories.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -50,10 +54,12 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/error"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
+                                "/error")
+                        .permitAll()
+                        .anyRequest().authenticated())
+                .exceptionHandling(exceptions -> exceptions
+                        .accessDeniedHandler(new CustomAccessDeniedHandler(objectMapper))
+                        .authenticationEntryPoint(new CustomAuthenticationEntryPoint(objectMapper)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -98,4 +104,3 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 }
-
