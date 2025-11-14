@@ -1,51 +1,69 @@
-version: '3.9'
-
 services:
+  # postgres:
+  #   image: postgres:16
+  #   container_name: postgres-suavitrine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5432:5432"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: minio-suavitrine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   command: server /data --console-address ":9001"
+  #   volumes:
+  #     - minio_data:/data
+  #   environment:
+  #     MINIO_ROOT_USER: minio
+  #     MINIO_ROOT_PASSWORD: minio123
+  #   env_file:
+  #     - .env
+
+  # adminer:p
+  #   image: adminer
+  #   container_name: adminer-suavitrine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8089:8080"
+  #   depends_on:
+  #     - postgres
+
   backend:
-    build: ./backend
-    container_name: suavitrine-backend
-    expose:
-      - "8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-    env_file:
-      - ./backend/.env
-    restart: unless-stopped
-
-  frontend:
-    image: nginx:alpine
-    container_name: suavitrine-frontend
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
-    expose:
-      - "80"
-    restart: unless-stopped
-
-  landing:
     build:
-      context: ./landing
+      context: .
       dockerfile: Dockerfile
-    container_name: suavitrine-landing
-    expose:
-      - "3000"
-    environment:
-      - NODE_ENV=production
-    command: npm start
+    container_name: backend-suavitrine
     restart: unless-stopped
-
-  nginx:
-    image: nginx:latest
-    container_name: suavitrine-nginx
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - /etc/letsencrypt/live:/etc/letsencrypt/live:ro
-      - /etc/letsencrypt/archive:/etc/letsencrypt/archive:ro
-    depends_on:
-      - backend
-      - frontend
-      - landing
-    restart: unless-stopped
+      - "8080:8080"
+    env_file:
+      - .env
+    # depends_on:
+    #   - postgres
+    #   - minio
 
+  
+  drizzle:
+    image: ghcr.io/drizzle-team/gateway:latest
+    container_name: drizzle-gateway
+    restart: always
+    ports:
+      - "4983:4983"
+    environment:
+      - PORT=4983
+      - STORE_PATH=/app
+      - MASTERPASS=${DRIZZLE_MASTER_PASSWORD}
+    volumes:
+      - drizzle_gateway_data:/app
+
+volumes:
+  postgres_data:
+  minio_data:
+  drizzle_gateway_data:
