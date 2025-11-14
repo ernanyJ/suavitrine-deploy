@@ -15,6 +15,7 @@ interface ProductsGridProps {
   productCardShadow: string
   phoneNumber?: string
   selectedCategoryId: string | null
+  searchQuery: string
 }
 
 export function ProductsGrid({
@@ -28,12 +29,25 @@ export function ProductsGrid({
   productCardShadow,
   phoneNumber,
   selectedCategoryId,
+  searchQuery,
 }: ProductsGridProps) {
   // Se uma categoria estiver selecionada, mostrar apenas os produtos dessa categoria
   // Caso contrário, mostrar todos os produtos organizados por categoria
-  const filteredCategories = selectedCategoryId
+  let filteredCategories = selectedCategoryId
     ? categories.filter(cat => cat.id === selectedCategoryId)
     : categories
+
+  // Filtrar produtos por pesquisa se houver termo de busca
+  if (searchQuery.trim()) {
+    const searchLower = searchQuery.toLowerCase().trim()
+    filteredCategories = filteredCategories.map(category => ({
+      ...category,
+      products: category.products.filter(product =>
+        product.title.toLowerCase().includes(searchLower) ||
+        (product.description && product.description.toLowerCase().includes(searchLower))
+      )
+    })).filter(category => category.products.length > 0)
+  }
 
   // Encontrar a categoria selecionada para mostrar o nome
   const selectedCategory = selectedCategoryId
@@ -52,7 +66,9 @@ export function ProductsGrid({
           className="text-lg"
           style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
         >
-          Nenhum produto encontrado nesta categoria.
+          {searchQuery.trim()
+            ? `Nenhum produto encontrado para "${searchQuery}".`
+            : 'Nenhum produto encontrado nesta categoria.'}
         </p>
       </div>
     )
@@ -60,14 +76,28 @@ export function ProductsGrid({
 
   return (
     <>
-      {/* Texto de filtro quando uma categoria está selecionada */}
-      {selectedCategory && (
+      {/* Texto de filtro quando uma categoria está selecionada ou há pesquisa */}
+      {(selectedCategory || searchQuery.trim()) && (
         <div className="mb-6">
           <p
             className="text-base"
             style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
           >
-            Filtrando pela categoria <span style={{ color: primaryColor, fontWeight: 600 }}>{selectedCategory.name}</span>
+            {selectedCategory && searchQuery.trim() && (
+              <>
+                Filtrando pela categoria <span style={{ color: primaryColor, fontWeight: 600 }}>{selectedCategory.name}</span> e pesquisa <span style={{ color: primaryColor, fontWeight: 600 }}>"{searchQuery}"</span>
+              </>
+            )}
+            {selectedCategory && !searchQuery.trim() && (
+              <>
+                Filtrando pela categoria <span style={{ color: primaryColor, fontWeight: 600 }}>{selectedCategory.name}</span>
+              </>
+            )}
+            {!selectedCategory && searchQuery.trim() && (
+              <>
+                Resultados para <span style={{ color: primaryColor, fontWeight: 600 }}>"{searchQuery}"</span>
+              </>
+            )}
           </p>
         </div>
       )}

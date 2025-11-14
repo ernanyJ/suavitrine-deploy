@@ -71,13 +71,13 @@ export default function Home() {
             </nav>
             <div className="flex items-center gap-3">
               <a
-                href="https://suavitrine-frontend.julioernany.workers.dev"
+                href="https://app.suavitrine.tech"
                 className="text-sm text-gray-600 hover:text-gray-900 transition px-4 py-2"
               >
                 Entrar
               </a>
               <a
-                href="https://suavitrine-frontend.julioernany.workers.dev"
+                href="https://app.suavitrine.tech"
                 className="text-sm bg-violet-500 text-white px-4 py-2 rounded-lg hover:bg-violet-600 transition shadow-md"
               >
                 Começar grátis
@@ -115,7 +115,7 @@ export default function Home() {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 mb-8 justify-center lg:justify-start">
                 <a
-                  href="https://suavitrine-frontend.julioernany.workers.dev"
+                  href="https://app.suavitrine.tech"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-violet-500 text-white font-medium rounded-lg hover:bg-violet-600 transition shadow-md"
                 >
                   Comece agora gratuitamente
@@ -433,7 +433,7 @@ export default function Home() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <a
-                    href="https://suavitrine-frontend.julioernany.workers.dev"
+                    href="https://app.suavitrine.tech"
                     className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-violet-600 font-medium rounded-lg hover:bg-gray-50 transition shadow-lg"
                   >
                     <Sparkles className="w-5 h-5" strokeWidth={1.5} />
@@ -657,7 +657,7 @@ export default function Home() {
               </div>
 
               <a
-                href="https://suavitrine-frontend.julioernany.workers.dev"
+                href="https://app.suavitrine.tech"
                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-white text-violet-600 font-medium rounded-lg border-2 border-violet-200 hover:border-violet-300 hover:bg-violet-50 transition mb-8"
               >
                 Começar grátis
@@ -723,7 +723,7 @@ export default function Home() {
               </div>
 
               <a
-                href="https://suavitrine-frontend.julioernany.workers.dev"
+                href="https://app.suavitrine.tech"
                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-white text-violet-600 font-medium rounded-lg hover:bg-gray-50 transition shadow-lg mb-8 relative z-10"
               >
                 Começar agora
@@ -786,7 +786,7 @@ export default function Home() {
               </div>
 
               <a
-                href="https://suavitrine-frontend.julioernany.workers.dev"
+                href="https://app.suavitrine.tech"
                 className="w-full inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium rounded-lg hover:from-violet-600 hover:to-purple-700 transition shadow-lg mb-8"
               >
                 Começar agora

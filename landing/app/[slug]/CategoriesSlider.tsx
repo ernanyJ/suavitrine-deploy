@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { Store } from '../types/store'
 import { CategoryImage } from './CategoryImage'
+import { getBackendUrl, shouldMakeApiCall } from '@/lib/api-config'
 
 interface CategoriesSliderProps {
   categories: Store['categories']
@@ -52,17 +53,19 @@ export function CategoriesSlider({
       // Atualizar timestamp do último clique
       lastClickTimestampsRef.current.set(categoryId, now)
       
-      // Registrar de forma assíncrona sem bloquear a UI
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
-      fetch(`${baseUrl}/api/v1/metrics/events/category-click/${storeId}/${categoryId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }).catch((error) => {
-        // Silently fail - metrics are not critical for the user experience
-        console.error('Failed to record category click metric:', error)
-      })
+      // Registrar de forma assíncrona sem bloquear a UI (apenas se API estiver configurada)
+      if (shouldMakeApiCall()) {
+        const baseUrl = getBackendUrl()
+        fetch(`${baseUrl}/api/v1/metrics/events/category-click/${storeId}/${categoryId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }).catch((error) => {
+          // Silently fail - metrics are not critical for the user experience
+          console.error('Failed to record category click metric:', error)
+        })
+      }
     }
   }
 
@@ -79,7 +82,7 @@ export function CategoriesSlider({
       <div className="relative">
         <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-4 px-1">
           {categoriesToShow.map((category) => {
-            const isSelected = selectedCategoryId === category.id
+            const isSelected = selectedCategoryId === category.id && category.id !== null;
             return (
               <div
                 key={category.id}

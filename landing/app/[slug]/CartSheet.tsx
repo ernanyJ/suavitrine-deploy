@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useCart } from '../contexts/CartContext'
 import { getContrastTextColor } from '@/lib/utils'
+import { getBackendUrl, shouldMakeApiCall } from '@/lib/api-config'
 
 // WhatsApp icon SVG
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -80,10 +81,10 @@ export function CartSheet({
     if (!phoneNumber || items.length === 0) return
     
     // Registrar conversão para todos os produtos do carrinho apenas uma vez por abertura do sheet (sem bloquear)
-    if (!conversionRegisteredRef.current) {
+    if (!conversionRegisteredRef.current && shouldMakeApiCall()) {
       conversionRegisteredRef.current = true
       // Registrar de forma assíncrona sem bloquear a UI
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
+      const baseUrl = getBackendUrl()
       // Usar Promise.allSettled para garantir que todas as conversões sejam registradas
       // mesmo se algumas falharem, mas sem await para não bloquear
       Promise.allSettled(

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Store } from '../types/store'
 import { CategoriesSlider } from './CategoriesSlider'
 import { ProductsGrid } from './ProductsGrid'
+import { SearchBar } from './SearchBar'
 
 interface StoreContentClientProps {
   store: Store
@@ -13,6 +14,8 @@ interface StoreContentClientProps {
   textColor: string
   borderColor: string
   productCardShadow: string
+  searchQuery: string
+  onSearchChange: (query: string) => void
 }
 
 export function StoreContentClient({
@@ -23,11 +26,24 @@ export function StoreContentClient({
   textColor,
   borderColor,
   productCardShadow,
+  searchQuery,
+  onSearchChange,
 }: StoreContentClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
 
   return (
     <>
+      {/* Barra de Pesquisa */}
+      <SearchBar
+        searchQuery={searchQuery}
+        onSearchChange={onSearchChange}
+        themeMode={themeMode}
+        primaryColor={primaryColor}
+        textColor={textColor}
+        borderColor={borderColor}
+        roundedClass={roundedClass}
+      />
+
       {/* Categorias - Slider Horizontal */}
       {store.categories.length > 0 && (
         <CategoriesSlider
@@ -54,6 +70,7 @@ export function StoreContentClient({
         productCardShadow={productCardShadow}
         phoneNumber={store.phoneNumber}
         selectedCategoryId={selectedCategoryId}
+        searchQuery={searchQuery}
       />
     </>
   )
