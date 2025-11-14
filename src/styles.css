@@ -1,0 +1,270 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+body {
+  @apply m-0;
+  font-family:
+    var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+:root {
+  /* SuaVitrine Color Palette */
+  /* Primária: #4B733C (verde base) */
+  --primary: #4B733C;
+  --primary-foreground: oklch(1 0 0);
+  
+  /* Secundária: #1E1E1E (preto suave) */
+  --foreground: #1E1E1E;
+  
+  /* Neutras */
+  --background: #F6F8F7;
+  --muted: #F6F8F7;
+  --border: #E2E5E3;
+  --input: #E2E5E3;
+  --muted-foreground: #6B6B6B;
+  
+  /* Cards e Popovers */
+  --card: oklch(1 0 0);
+  --card-foreground: #1E1E1E;
+  --popover: oklch(1 0 0);
+  --popover-foreground: #1E1E1E;
+  
+  /* Secondary (para botões secundários) */
+  --secondary: oklch(1 0 0);
+  --secondary-foreground: #1E1E1E;
+  
+  /* Accent */
+  --accent: #F6F8F7;
+  --accent-foreground: #1E1E1E;
+  
+  /* Status Colors */
+  --destructive: #EF4444;
+  --destructive-foreground: oklch(1 0 0);
+  --success: #34D399;
+  --warning: #D97706; /* Amber-600 - Amarelo dourado para avisos */
+  --warning-foreground: #1E1E1E;
+  
+  /* Ring/Focus */
+  --ring: #4B733C;
+  
+  /* Sidebar */
+  --sidebar: #F6F8F7;
+  --sidebar-foreground: #1E1E1E;
+  --sidebar-primary: #4B733C;
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: #E2E5E3;
+  --sidebar-accent-foreground: #1E1E1E;
+  --sidebar-border: #E2E5E3;
+  --sidebar-ring: #4B733C;
+  
+  /* Charts */
+  --chart-1: #4B733C;
+  --chart-2: #34D399;
+  --chart-3: oklch(0.80 0.12 140);
+  --chart-4: oklch(0.70 0.10 140);
+  --chart-5: oklch(0.60 0.08 140);
+  
+  /* Typography - Inter como fonte primária */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-serif: 'Inter', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  
+  /* Border Radius - 12px (0.75rem) padrão, com variações */
+  --radius: 0.75rem;
+  
+  /* Shadows - sutis conforme diretrizes */
+  --shadow-color: rgba(0, 0, 0, 0.04);
+  --shadow-opacity: 0.04;
+  --shadow-blur: 8px;
+  --shadow-spread: 0px;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 2px;
+  
+  /* Shadows específicas */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.08);
+  --shadow-2xl: 0 16px 32px rgba(0, 0, 0, 0.1);
+  
+  /* Letter spacing */
+  --letter-spacing: 0em;
+  --tracking-normal: 0em;
+  
+  /* Spacing base - 8px grid */
+  --spacing: 0.3rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: 0.5rem; /* 8px */
+  --radius-md: 0.75rem; /* 12px */
+  --radius-lg: 1rem; /* 16px */
+  --radius-xl: 1.25rem; /* 20px */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  --font-serif: 'Inter', sans-serif;
+  --radius: 0.75rem;
+  --tracking-tighter:
+    calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight:
+    calc(var(--tracking-normal) - 0.025em);
+  --tracking-wide:
+    calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider:
+    calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest:
+    calc(var(--tracking-normal) + 0.1em);
+  --tracking-normal:
+    var(--tracking-normal);
+  --shadow-2xl:
+    var(--shadow-2xl);
+  --shadow-xl:
+    var(--shadow-xl);
+  --shadow-lg:
+    var(--shadow-lg);
+  --shadow-md:
+    var(--shadow-md);
+  --shadow:
+    var(--shadow);
+  --shadow-sm:
+    var(--shadow-sm);
+  --shadow-xs:
+    var(--shadow-xs);
+  --shadow-2xs:
+    var(--shadow-2xs);
+  --spacing:
+    var(--spacing);
+  --letter-spacing:
+    var(--letter-spacing);
+  --shadow-offset-y:
+    var(--shadow-offset-y);
+  --shadow-offset-x:
+    var(--shadow-offset-x);
+  --shadow-spread:
+    var(--shadow-spread);
+  --shadow-blur:
+    var(--shadow-blur);
+  --shadow-opacity:
+    var(--shadow-opacity);
+  --color-shadow-color:
+    var(--shadow-color);
+  --animate-rainbow:
+    rainbow var(--speed, 2s) infinite linear;
+  --color-color-5:
+    var(--color-5);
+  --color-color-4:
+    var(--color-4);
+  --color-color-3:
+    var(--color-3);
+  --color-color-2:
+    var(--color-2);
+  --color-color-1:
+    var(--color-1);
+  @keyframes rainbow {
+  0% {
+    background-position:
+    0%;
+    }
+  100% {
+    background-position:
+    200%;
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes shimmer-gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    letter-spacing: var(--tracking-normal);
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Tipografia - Hierarquia conforme diretrizes */
+  h1 {
+    font-weight: 700;
+    font-size: 2rem; /* 32px */
+    line-height: 1.4;
+  }
+  
+  h2 {
+    font-weight: 600;
+    font-size: 1.5rem; /* 24px */
+    line-height: 1.4;
+  }
+  
+  /* Labels e botões */
+  label, button {
+    font-weight: 500;
+    font-size: 0.875rem; /* 14px */
+  }
+}
