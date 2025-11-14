@@ -1,16 +1,18 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { Store, BackgroundType } from '../types/store';
-import { StoreContentClient } from './StoreContentClient';
 import { StoreAccessTracker } from './StoreAccessTracker';
 import { CartProvider } from '../contexts/CartContext';
-import { StoreHeader } from './StoreHeader';
+import { StoreSearchWrapper } from './StoreSearchWrapper';
 import { CartFooter } from './CartFooter';
 import { DotPattern } from '@/components/ui/dot-pattern';
 import { StripedPattern } from '@/components/magicui/striped-pattern';
 import { GridPattern } from '@/components/ui/grid-pattern';
 import { FlickeringGrid } from '@/components/ui/flickering-grid';
 import { LightRays } from '@/components/ui/light-rays';
+import { getBackendUrl } from '@/lib/api-config';
+import { Instagram, Facebook, Mail, Phone, MapPin } from 'lucide-react';
 
 // Helper to get rounded class based on RoundedLevel
 function getRoundedClass(level: string): string {
@@ -38,15 +40,24 @@ function formatFontFamily(fontName: string): string {
 }
 
 async function fetchStore(slug: string): Promise<Store> {
-  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+  const baseUrl = getBackendUrl();
+  console.log(baseUrl);
+  if (!baseUrl) {
+    throw new Error('Backend URL is not configured');
+  }
+
   const response = await fetch(`${baseUrl}/api/v1/stores/public/${slug}`, {
     cache: 'no-store',
   });
 
+  if (response.status === 404) {
+    notFound();
+  }
+
   if (!response.ok) {
     throw new Error('Failed to fetch store data');
   }
-  
+
 
   return response.json();
 }
@@ -133,10 +144,10 @@ interface StorePageProps {
 // Generate metadata for the store page
 export async function generateMetadata({ params }: StorePageProps): Promise<Metadata> {
   const { slug } = await params;
-  
+
   try {
     const store = await fetchStore(slug);
-    
+
     return {
       title: store.name,
       description: store.description || `Visite ${store.name} e descubra nossos produtos incríveis`,
@@ -177,7 +188,7 @@ async function StoreContent({ slug }: { slug: string }) {
   const roundedClass = getRoundedClass(store.roundedLevel);
   const formattedPrimaryFont = formatFontFamily(store.primaryFont);
   const formattedSecondaryFont = formatFontFamily(store.secondaryFont);
-  
+
   // Helper to convert hex color to RGB
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -187,11 +198,11 @@ async function StoreContent({ slug }: { slug: string }) {
       b: parseInt(result[3], 16)
     } : null;
   };
-  
+
   // Convert shadow color to rgba for box-shadow
   const productCardShadowColor = store.productCardShadow || '#000000';
   const shadowRgb = hexToRgb(productCardShadowColor);
-  const productCardShadow = shadowRgb 
+  const productCardShadow = shadowRgb
     ? `0 10px 15px -3px rgba(${shadowRgb.r}, ${shadowRgb.g}, ${shadowRgb.b}, 0.1), 0 4px 6px -4px rgba(${shadowRgb.r}, ${shadowRgb.g}, ${shadowRgb.b}, 0.1)`
     : 'none';
 
@@ -224,7 +235,7 @@ async function StoreContent({ slug }: { slug: string }) {
 
     // Convert background color to RGB
     const bgColorRgb = hexToRgb(backgroundColor);
-    const backgroundStyle = bgColorRgb 
+    const backgroundStyle = bgColorRgb
       ? { color: `rgba(${bgColorRgb.r}, ${bgColorRgb.g}, ${bgColorRgb.b}, ${backgroundOpacity})` }
       : { color: backgroundColor, opacity: backgroundOpacity };
 
@@ -238,7 +249,7 @@ async function StoreContent({ slug }: { slug: string }) {
         />
       );
     }
-    
+
     if (backgroundType === 'DOT') {
       return (
         <DotPattern
@@ -250,7 +261,7 @@ async function StoreContent({ slug }: { slug: string }) {
         />
       );
     }
-    
+
     if (backgroundType === 'GRID') {
       return (
         <GridPattern
@@ -261,7 +272,7 @@ async function StoreContent({ slug }: { slug: string }) {
         />
       );
     }
-    
+
     if (backgroundType === 'FLICKERING_GRID') {
       return (
         <FlickeringGrid
@@ -274,7 +285,7 @@ async function StoreContent({ slug }: { slug: string }) {
         />
       );
     }
-    
+
     if (backgroundType === 'LIGHT_RAYS') {
       return (
         <LightRays
@@ -287,7 +298,7 @@ async function StoreContent({ slug }: { slug: string }) {
         />
       );
     }
-        
+
     return null;
   };
 
@@ -337,145 +348,64 @@ async function StoreContent({ slug }: { slug: string }) {
             {renderBackground()}
           </div>
         )}
-        
+
         {/* Store Access Tracker - registra métrica de acesso */}
         <div className="relative z-10">
           <StoreAccessTracker storeId={store.id} />
         </div>
-        
-        {/* Header com logo no centro e botão do carrinho */}
-        <StoreHeader
-          logoUrl={store.logoUrl}
-          storeName={store.name}
-          storeId={store.id}
+
+        {/* Header com logo no centro, botão de pesquisa e carrinho */}
+        <StoreSearchWrapper
+          store={store}
+          themeMode={themeMode as 'dark' | 'light'}
           roundedClass={roundedClass}
           primaryColor={primaryColor}
           textColor={textColor}
           borderColor={borderColor}
-          themeMode={themeMode as 'dark' | 'light'}
+          productCardShadow={productCardShadow}
+          logoUrl={store.logoUrl}
           phoneNumber={store.phoneNumber}
-        />
+        >
+          <main className="container mx-auto px-4 py-8 relative z-10">
+            {/* Banner */}
+            {(store.bannerDesktopUrl || store.bannerTabletUrl || store.bannerMobileUrl) && (
+              <div className="mb-12 w-full">
+                {/* Desktop Banner (lg+) */}
+                {store.bannerDesktopUrl && (
+                  <div className="hidden lg:block">
+                    <img
+                      src={store.bannerDesktopUrl}
+                      alt={`Banner ${store.name}`}
+                      className={`w-full aspect-4/1 ${roundedClass} object-cover`}
+                    />
+                  </div>
+                )}
 
-        <main className="container mx-auto px-4 py-8 pb-24 relative z-10">
-          {/* Banner */}
-          <div className="mb-12 w-full">
-            {/* Desktop Banner (lg+) */}
-            <div className="hidden lg:block">
-              {store.bannerDesktopUrl ? (
-                <img
-                  src={store.bannerDesktopUrl}
-                  alt={`Banner ${store.name}`}
-                  className={`w-full aspect-4/1 ${roundedClass} object-cover`}
-                />
-              ) : (
-                <div
-                  className={`w-full aspect-4/1 ${roundedClass} flex items-center justify-center`}
-                  style={{
-                    backgroundColor: themeMode === 'dark' ? '#1a1a1a' : '#e4e4e7',
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ color: themeMode === 'dark' ? '#52525b' : '#a1a1aa' }}
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" />
-                    <path d="M3 9h18" />
-                    <path d="M9 21V9" />
-                  </svg>
-                </div>
-              )}
-            </div>
+                {/* Tablet Banner (md to lg) */}
+                {store.bannerTabletUrl && (
+                  <div className="hidden md:block lg:hidden">
+                    <img
+                      src={store.bannerTabletUrl}
+                      alt={`Banner ${store.name}`}
+                      className={`w-full aspect-4/1 ${roundedClass} object-cover`}
+                    />
+                  </div>
+                )}
 
-            {/* Tablet Banner (md to lg) */}
-            <div className="hidden md:block lg:hidden">
-              {store.bannerTabletUrl ? (
-                <img
-                  src={store.bannerTabletUrl}
-                  alt={`Banner ${store.name}`}
-                  className={`w-full aspect-4/1 ${roundedClass} object-cover`}
-                />
-              ) : (
-                <div
-                  className={`w-full aspect-4/1 ${roundedClass} flex items-center justify-center`}
-                  style={{
-                    backgroundColor: themeMode === 'dark' ? '#1a1a1a' : '#e4e4e7',
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ color: themeMode === 'dark' ? '#52525b' : '#a1a1aa' }}
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" />
-                    <path d="M3 9h18" />
-                    <path d="M9 21V9" />
-                  </svg>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Banner (below md) */}
-            <div className="block md:hidden">
-              {store.bannerMobileUrl ? (
-                <img
-                  src={store.bannerMobileUrl}
-                  alt={`Banner ${store.name}`}
-                  className={`w-full aspect-4/1 ${roundedClass} object-cover`}
-                />
-              ) : (
-                <div
-                  className={`w-full aspect-4/1 ${roundedClass} flex items-center justify-center`}
-                  style={{
-                    backgroundColor: themeMode === 'dark' ? '#1a1a1a' : '#e4e4e7',
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ color: themeMode === 'dark' ? '#52525b' : '#a1a1aa' }}
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" />
-                    <path d="M3 9h18" />
-                    <path d="M9 21V9" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Categorias e Produtos com Filtro */}
-          <StoreContentClient
-            store={store}
-            themeMode={themeMode as 'dark' | 'light'}
-            roundedClass={roundedClass}
-            primaryColor={primaryColor}
-            textColor={textColor}
-            borderColor={borderColor}
-            productCardShadow={productCardShadow}
-          />
-        </main>
+                {/* Mobile Banner (below md) */}
+                {store.bannerMobileUrl && (
+                  <div className="block md:hidden">
+                    <img
+                      src={store.bannerMobileUrl}
+                      alt={`Banner ${store.name}`}
+                      className={`w-full aspect-4/1 ${roundedClass} object-cover`}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </StoreSearchWrapper>
 
         {/* Footer */}
         <footer
@@ -499,12 +429,12 @@ async function StoreContent({ slug }: { slug: string }) {
                 >
                   {store.name}
                 </p>
-                {store.address && (
+                {store.description && (
                   <p
                     className="mt-2 text-sm"
                     style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
                   >
-                    {store.address.street}, {store.address.city} - {store.address.state}
+                    {store.description}
                   </p>
                 )}
               </div>
@@ -516,19 +446,40 @@ async function StoreContent({ slug }: { slug: string }) {
                   Contato
                 </h4>
                 {store.email && (
-                  <p
-                    className="text-sm"
-                    style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
+                  <a
+                    href={`mailto:${store.email}`}
+                    className="flex items-center gap-2 text-sm hover:underline mb-2"
+                    style={{ color: primaryColor }}
                   >
+                    <Mail 
+                      className="w-4 h-4" 
+                      style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
+                    />
                     {store.email}
-                  </p>
+                  </a>
                 )}
                 {store.phoneNumber && (
+                  <a
+                    href={`tel:${store.phoneNumber}`}
+                    className="flex items-center gap-2 text-sm hover:underline mb-2"
+                    style={{ color: primaryColor }}
+                  >
+                    <Phone 
+                      className="w-4 h-4" 
+                      style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
+                    />
+                    {store.phoneNumber}
+                  </a>
+                )}
+                {store.address && (
                   <p
-                    className="text-sm"
+                    className="flex items-start gap-2 text-sm mt-2"
                     style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
                   >
-                    {store.phoneNumber}
+                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      {store.address.street}, {store.address.city} - {store.address.state}
+                    </span>
                   </p>
                 )}
               </div>
@@ -544,9 +495,13 @@ async function StoreContent({ slug }: { slug: string }) {
                     href={`https://instagram.com/${store.instagram}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-sm hover:underline"
+                    className="flex items-center gap-2 text-sm hover:underline mb-2"
                     style={{ color: primaryColor }}
                   >
+                    <Instagram 
+                      className="w-4 h-4" 
+                      style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
+                    />
                     @{store.instagram}
                   </a>
                 )}
@@ -555,9 +510,13 @@ async function StoreContent({ slug }: { slug: string }) {
                     href={`https://facebook.com/${store.facebook}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-sm hover:underline"
+                    className="flex items-center gap-2 text-sm hover:underline"
                     style={{ color: primaryColor }}
                   >
+                    <Facebook 
+                      className="w-4 h-4" 
+                      style={{ color: themeMode === 'dark' ? '#a1a1aa' : '#71717a' }}
+                    />
                     {store.facebook}
                   </a>
                 )}

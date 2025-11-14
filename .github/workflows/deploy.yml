@@ -20,7 +20,8 @@ jobs:
           username: ernany
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/suavitrine/landing
-            git pull origin main
+            cd ~/suavitrine
+            git fetch landing
+            git subtree pull --prefix=landing landing main --squash
             docker compose build landing
             docker compose up -d landing

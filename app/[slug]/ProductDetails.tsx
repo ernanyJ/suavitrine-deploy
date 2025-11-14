@@ -20,6 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getContrastTextColor } from '@/lib/utils'
+import { getBackendUrl, shouldMakeApiCall } from '@/lib/api-config'
 
 interface ProductDetailsProps {
   product: Product | null
@@ -77,10 +78,10 @@ export function ProductDetails({
       setSelectedImageIndex(0)
       
       // Registrar evento de clique do produto quando o dialog abrir (apenas uma vez)
-      if (!clickRegisteredRef.current) {
+      if (!clickRegisteredRef.current && shouldMakeApiCall()) {
         clickRegisteredRef.current = true
         // Registrar de forma assíncrona sem bloquear a UI
-        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
+        const baseUrl = getBackendUrl()
         fetch(`${baseUrl}/api/v1/metrics/events/product-click/${storeId}/${product.id}`, {
           method: 'POST',
           headers: {
@@ -124,10 +125,10 @@ export function ProductDetails({
     if (!phoneNumber) return
     
     // Registrar conversão do produto apenas uma vez por abertura do dialog/drawer (sem bloquear)
-    if (!conversionRegisteredRef.current) {
+    if (!conversionRegisteredRef.current && shouldMakeApiCall()) {
       conversionRegisteredRef.current = true
       // Registrar de forma assíncrona sem bloquear a UI
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
+      const baseUrl = getBackendUrl()
       fetch(`${baseUrl}/api/v1/metrics/events/product-conversion/${storeId}/${product.id}`, {
         method: 'POST',
         headers: {
