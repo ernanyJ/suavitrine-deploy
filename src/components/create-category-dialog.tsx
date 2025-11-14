@@ -12,7 +12,6 @@ import {
   Drawer,
   DrawerContent,
   DrawerDescription,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
@@ -80,13 +79,6 @@ const validateImageFile = (file: File): void => {
 }
 
 // Validation functions
-const validateRequired = ({ value }: { value: string }) => {
-  if (!value || value.trim() === '') {
-    return 'Este campo é obrigatório'
-  }
-  return undefined
-}
-
 const validateCategoryName = ({ value }: { value: string }) => {
   if (!value || value.trim() === '') {
     return 'Este campo é obrigatório'

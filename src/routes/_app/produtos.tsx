@@ -159,7 +159,7 @@ function ProdutosPage() {
   const { data: categories = [] } = useStoreCategories(selectedStoreId)
   
   // Delete product mutation
-  const deleteProductMutation = useDeleteProduct(selectedStoreId)
+  const deleteProductMutation = useDeleteProduct()
   
   // Toggle availability mutation
   const toggleAvailabilityMutation = useToggleProductAvailability(selectedStoreId)

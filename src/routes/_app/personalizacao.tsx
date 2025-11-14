@@ -64,7 +64,6 @@ import {
 import { useStore, useUpdateThemeConfig } from '@/lib/api/queries'
 import { useSelectedStore } from '@/contexts/store-context'
 import type { UpdateThemeConfigRequest, ThemeMode, RoundedLevel, BackgroundType } from '@/lib/api/stores'
-import { cn } from '@/lib/utils'
 import { StripedPattern } from '@/components/ui/striped-pattern'
 import { DotPattern } from '@/components/ui/dot-pattern'
 import { GridPattern } from '@/components/ui/grid-pattern'

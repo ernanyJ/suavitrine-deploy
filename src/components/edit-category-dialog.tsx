@@ -108,13 +108,6 @@ const validateImageFile = (file: File): void => {
 }
 
 // Validation functions
-const validateRequired = ({ value }: { value: string }) => {
-  if (!value || value.trim() === '') {
-    return 'Este campo é obrigatório'
-  }
-  return undefined
-}
-
 const validateCategoryName = ({ value }: { value: string }) => {
   if (!value || value.trim() === '') {
     return 'Este campo é obrigatório'
@@ -205,7 +198,6 @@ export function EditCategoryDialog({
   const updateProductsOrderMutation = useUpdateProductsOrder(storeId)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
-  const [imageRemoved, setImageRemoved] = useState(false)
   const [imageDelete, setImageDelete] = useState(false)
   const [isProductsExpanded, setIsProductsExpanded] = useState(false)
   const [products, setProducts] = useState<ProductResponse[]>([])
@@ -247,7 +239,6 @@ export function EditCategoryDialog({
         setPreview(null)
       }
       // Reset image removal state when category changes
-      setImageRemoved(false)
       setImageDelete(false)
       setSelectedImage(null)
     }
@@ -266,7 +257,6 @@ export function EditCategoryDialog({
       setIsProductsExpanded(false)
       setProducts([])
       setHasOrderChanged(false)
-      setImageRemoved(false)
       setImageDelete(false)
       setSelectedImage(null)
       // Reset preview to original image when dialog closes
@@ -284,7 +274,6 @@ export function EditCategoryDialog({
       try {
         validateImageFile(file)
         setSelectedImage(file)
-        setImageRemoved(false) // Reset removal flag when new image is selected
         setImageDelete(false) // Reset delete flag when uploading new image
         const reader = new FileReader()
         reader.onloadend = () => {
@@ -302,7 +291,6 @@ export function EditCategoryDialog({
 
   const handleRemoveImage = () => {
     setSelectedImage(null)
-    setImageRemoved(true)
     setImageDelete(true) // Set delete flag when user removes image
     setPreview(null)
   }
