@@ -3,6 +3,7 @@ package com.dalivim.suavitrine.suavitrine.infra.security.filters;
 import com.dalivim.suavitrine.suavitrine.infra.security.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.sentry.Sentry;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
@@ -75,9 +76,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             handleJwtException(response, request, "Token JWT expirado", HttpStatus.UNAUTHORIZED);
             return;
         } catch (SignatureException | MalformedJwtException e) {
+            Sentry.captureException(e);
             handleJwtException(response, request, "Token JWT inválido", HttpStatus.UNAUTHORIZED);
             return;
         } catch (Exception e) {
+            Sentry.captureException(e);
             handleJwtException(response, request, "Erro ao processar token JWT", HttpStatus.UNAUTHORIZED);
             return;
         }

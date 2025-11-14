@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.dalivim.suavitrine.suavitrine.repositories.BillingRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.sentry.Sentry;
 
 @Slf4j
 @Service
@@ -76,7 +77,7 @@ public class AbacateBillingService implements IBillingService {
 
     @Override
     @Transactional
-    public BillingResponse createBillingRequest(UUID storeId, PayingPlan payingPlan, PlanDuration planDuration) {
+    public BillingResponse createBillingRequest(UUID storeId, PayingPlan payingPlan, PlanDuration planDuration, String taxId) {
         var user = jwtService.getCurrentAuthenticatedUser();
 
         Store store = storeRepository.findById(storeId)
@@ -111,6 +112,7 @@ public class AbacateBillingService implements IBillingService {
                 .payingPlan(payingPlan)
                 .planDuration(planDuration)
                 .price(calculatedPrice)
+                .taxId(taxId)
                 .paidAt(null)
                 .expiresAt(expiresAt)
                 .createdAt(Instant.now())
@@ -191,20 +193,18 @@ public class AbacateBillingService implements IBillingService {
     }
 
     private CreateAbacateBilling.Customer createAbacateCustomer(Billing billing) {
-        var taxId = billing.getStore().getCnpj() != null ? billing.getStore().getCnpj() : billing.getPayer().getUser().getCpf();
-
         return CreateAbacateBilling.Customer.builder()
                 .name(billing.getPayer().getUser().getName())
                 .email(billing.getPayer().getUser().getEmail())
                 .cellphone(billing.getStore().getPhoneNumber())
-                .taxId(taxId)
+                .taxId(billing.getTaxId())
                 .build();
     }
 
     /**
      * Valida a assinatura HMAC-SHA256 do webhook.
      * Segue a especificação da AbacatePay: https://docs.abacatepay.com/pages/webhooks
-     * 
+     *  
      * @param rawBody Corpo bruto da requisição como string (UTF-8)
      * @param signatureFromHeader Assinatura recebida no header X-Webhook-Signature (Base64)
      * @return true se a assinatura é válida, false caso contrário
@@ -235,12 +235,15 @@ public class AbacateBillingService implements IBillingService {
             
             return MessageDigest.isEqual(expected, received);
         } catch (IllegalArgumentException e) {
+            Sentry.captureException(e);
             log.error("Erro ao decodificar assinatura Base64 do webhook: {}", e.getMessage());
             return false;
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            Sentry.captureException(e);
             log.error("Erro ao inicializar HMAC: {}", e.getMessage(), e);
             return false;
         } catch (Exception e) {
+            Sentry.captureException(e);
             log.error("Erro inesperado ao verificar assinatura do webhook: {}", e.getMessage(), e);
             return false;
         }
@@ -311,6 +314,7 @@ public class AbacateBillingService implements IBillingService {
                 couponsUsedJson = objectMapper.writeValueAsString(couponsUsed);
                 log.debug("Cupons serializados em JSON com sucesso");
             } catch (Exception e) {
+                Sentry.captureException(e);
                 log.error("Erro ao serializar cupons usados em JSON: {}", e.getMessage(), e);
                 couponsUsedJson = null;
             }

@@ -34,7 +34,6 @@ public class AuthenticationService {
         var user = User.builder()
                 .name(request.name())
                 .email(request.email())
-                .cpf(request.cpf())
                 .password(passwordEncoder.encode(request.password()))
                 .build();
 

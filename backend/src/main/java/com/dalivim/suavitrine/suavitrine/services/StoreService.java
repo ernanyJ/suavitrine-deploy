@@ -39,7 +39,7 @@ public class StoreService {
     private final BillingRepository billingRepository;
 
     /**
-     * Cria uma nova loja e associa o usuário criador como OWNER 
+     * Cria uma nova loja e associa o usuário criador como OWNER
      */
     @Transactional
     public StoreResponse createStore(CreateStoreRequest request, UUID ownerUserId) {
@@ -50,13 +50,13 @@ public class StoreService {
         Store createdStore = createStore(store, ownerUserId);
         processStoreLogo(request, store);
 
-
         // Converte para DTO de resposta
         return toStoreResponse(createdStore);
     }
 
     /**
-     * Cria uma nova loja e associa o usuário criador como OWNER (método que trabalha com entidades)
+     * Cria uma nova loja e associa o usuário criador como OWNER (método que
+     * trabalha com entidades)
      */
     @Transactional
     public Store createStore(Store store, UUID ownerUserId) {
@@ -69,6 +69,39 @@ public class StoreService {
             store.setStoreUsers(new ArrayList<>());
         }
 
+        // Define valores padrão do tema se não foram fornecidos
+        if (store.getPrimaryColor() == null || store.getPrimaryColor().isEmpty()) {
+            store.setPrimaryColor("#0ea5e9");
+        }
+        if (store.getThemeMode() == null) {
+            store.setThemeMode(ThemeMode.LIGHT);
+        }
+        if (store.getPrimaryFont() == null || store.getPrimaryFont().isEmpty()) {
+            store.setPrimaryFont("Poppins");
+        }
+        if (store.getSecondaryFont() == null || store.getSecondaryFont().isEmpty()) {
+            store.setSecondaryFont("Inter");
+        }
+        if (store.getRoundedLevel() == null) {
+            store.setRoundedLevel(RoundedLevel.MEDIUM);
+        }
+        if (store.getProductCardShadow() == null || store.getProductCardShadow().isEmpty()) {
+            store.setProductCardShadow("#000000");
+        }
+        // Background padrão: desabilitado (null = NONE)
+        if (store.getBackgroundType() == null) {
+            store.setBackgroundType(null); // NONE
+        }
+        if (store.getBackgroundEnabled() == null) {
+            store.setBackgroundEnabled(true);
+        }
+        if (store.getBackgroundOpacity() == null) {
+            store.setBackgroundOpacity(0.7);
+        }
+        if (store.getBackgroundColor() == null || store.getBackgroundColor().isEmpty()) {
+            store.setBackgroundColor("#000000");
+        }
+
         // Salva a loja (o address será salvo em cascata)
         Store savedStore = storeRepository.save(store);
 
@@ -77,7 +110,7 @@ public class StoreService {
         storeUser.setStore(savedStore);
         storeUser.setUser(owner);
         storeUser.setRole(UserRole.OWNER);
-        
+
         StoreUser savedStoreUser = storeUserRepository.save(storeUser);
 
         // Adiciona o storeUser na lista da store
@@ -87,7 +120,7 @@ public class StoreService {
     }
 
     /**
-     * Atualiza os dados de uma loja 
+     * Atualiza os dados de uma loja
      */
     @Transactional
     public StoreResponse updateStore(UUID storeId, UpdateStoreRequest request) {
@@ -105,31 +138,30 @@ public class StoreService {
         if (!hasPermission) {
             throw new InsufficientPermissionException("Usuário não tem permissão para atualizar esta loja.");
         }
-        
+
         // Processa upload do logo se fornecido
         if (request.logo() != null) {
             // Remove logo antigo se existir
             if (existingStore.getLogoUrl() != null && !existingStore.getLogoUrl().isEmpty()) {
                 imageService.deleteImage(existingStore.getLogoUrl());
             }
-            
+
             // Faz upload do novo logo para o storage (retorna a KEY)
             String logoKey = imageService.uploadStoreLogo(
-                request.logo().base64Image(),
-                request.logo().fileName(),
-                request.logo().contentType()
-            );
-            
+                    request.logo().base64Image(),
+                    request.logo().fileName(),
+                    request.logo().contentType());
+
             // Define a KEY no objeto store (não a URL)
             existingStore.setLogoUrl(logoKey);
         }
-        
+
         // Atualiza a entidade com os dados do DTO usando MapStruct
         storeMapper.updateEntityFromDto(request, existingStore);
-        
+
         // Salva as alterações
         Store updatedStore = storeRepository.save(existingStore);
-        
+
         // Converte para DTO de resposta
         return toStoreResponse(updatedStore);
     }
@@ -175,7 +207,7 @@ public class StoreService {
         if (updatedStore.getAddress() != null) {
             Address existingAddress = existingStore.getAddress();
             Address newAddress = updatedStore.getAddress();
-            
+
             if (existingAddress == null) {
                 existingStore.setAddress(newAddress);
             } else {
@@ -221,13 +253,15 @@ public class StoreService {
         // Verifica se a loja tem plano BASIC ou superior
         var currentActivePlan = billingRepository.findCurrentActivePlan(existingStore);
         if (currentActivePlan.isEmpty()) {
-            throw new IllegalUserArgumentException("A loja não possui um plano ativo. É necessário ter pelo menos o plano BASIC para atualizar o background.");
+            throw new IllegalUserArgumentException(
+                    "A loja não possui um plano ativo. É necessário ter pelo menos o plano BASIC para atualizar o background.");
         }
 
         var activePlan = currentActivePlan.get();
         if (activePlan.getPayingPlan() != PayingPlan.BASIC &&
-            activePlan.getPayingPlan() != PayingPlan.PRO) {
-            throw new InsufficientPermissionException("Atualização de background é uma feature disponível apenas para planos BASIC e PRO.");
+                activePlan.getPayingPlan() != PayingPlan.PRO) {
+            throw new InsufficientPermissionException(
+                    "Atualização de background é uma feature disponível apenas para planos BASIC e PRO.");
         }
 
         // Atualiza apenas os campos de background
@@ -255,7 +289,7 @@ public class StoreService {
     }
 
     /**
-     * Atualiza a configuração de tema de uma loja 
+     * Atualiza a configuração de tema de uma loja
      */
     @Transactional
     public StoreResponse updateThemeConfig(UUID storeId, UpdateThemeConfigRequest request) {
@@ -273,89 +307,108 @@ public class StoreService {
         if (!hasPermission) {
             throw new InsufficientPermissionException("Usuário não tem permissão para atualizar esta loja.");
         }
-        
+
         // Processa upload do logo se fornecido
         if (request.logo() != null) {
             // Remove logo antigo se existir
             if (existingStore.getLogoUrl() != null && !existingStore.getLogoUrl().isEmpty()) {
                 imageService.deleteImage(existingStore.getLogoUrl());
             }
-            
+
             // Faz upload do novo logo para o storage (retorna a KEY)
             String logoKey = imageService.uploadStoreLogo(
-                request.logo().base64Image(),
-                request.logo().fileName(),
-                request.logo().contentType()
-            );
-            
+                    request.logo().base64Image(),
+                    request.logo().fileName(),
+                    request.logo().contentType());
+
             // Define a KEY no objeto store (não a URL)
             existingStore.setLogoUrl(logoKey);
         }
-        
+
+        // Processa deleção de banners se solicitado
+        if (Boolean.TRUE.equals(request.bannerDesktopDelete())) {
+            if (existingStore.getBannerDesktopUrl() != null && !existingStore.getBannerDesktopUrl().isEmpty()) {
+                imageService.deleteImage(existingStore.getBannerDesktopUrl());
+                existingStore.setBannerDesktopUrl(null);
+            }
+        }
+
+        if (Boolean.TRUE.equals(request.bannerTabletDelete())) {
+            if (existingStore.getBannerTabletUrl() != null && !existingStore.getBannerTabletUrl().isEmpty()) {
+                imageService.deleteImage(existingStore.getBannerTabletUrl());
+                existingStore.setBannerTabletUrl(null);
+            }
+        }
+
+        if (Boolean.TRUE.equals(request.bannerMobileDelete())) {
+            if (existingStore.getBannerMobileUrl() != null && !existingStore.getBannerMobileUrl().isEmpty()) {
+                imageService.deleteImage(existingStore.getBannerMobileUrl());
+                existingStore.setBannerMobileUrl(null);
+            }
+        }
+
         // Processa upload dos banners se fornecidos
         if (request.bannerDesktop() != null) {
             // Remove banner antigo se existir
             if (existingStore.getBannerDesktopUrl() != null && !existingStore.getBannerDesktopUrl().isEmpty()) {
                 imageService.deleteImage(existingStore.getBannerDesktopUrl());
             }
-            
+
             // Faz upload do novo banner para o storage (retorna a KEY)
             String bannerKey = imageService.uploadBase64Image(
-                request.bannerDesktop().base64Image(),
-                request.bannerDesktop().fileName(),
-                request.bannerDesktop().contentType()
-            );
-            
+                    request.bannerDesktop().base64Image(),
+                    request.bannerDesktop().fileName(),
+                    request.bannerDesktop().contentType());
+
             // Define a KEY no objeto store (não a URL)
             existingStore.setBannerDesktopUrl(bannerKey);
         }
-        
+
         if (request.bannerTablet() != null) {
             // Remove banner antigo se existir
             if (existingStore.getBannerTabletUrl() != null && !existingStore.getBannerTabletUrl().isEmpty()) {
                 imageService.deleteImage(existingStore.getBannerTabletUrl());
             }
-            
+
             // Faz upload do novo banner para o storage (retorna a KEY)
             String bannerKey = imageService.uploadBase64Image(
-                request.bannerTablet().base64Image(),
-                request.bannerTablet().fileName(),
-                request.bannerTablet().contentType()
-            );
-            
+                    request.bannerTablet().base64Image(),
+                    request.bannerTablet().fileName(),
+                    request.bannerTablet().contentType());
+
             // Define a KEY no objeto store (não a URL)
             existingStore.setBannerTabletUrl(bannerKey);
         }
-        
+
         if (request.bannerMobile() != null) {
             // Remove banner antigo se existir
             if (existingStore.getBannerMobileUrl() != null && !existingStore.getBannerMobileUrl().isEmpty()) {
                 imageService.deleteImage(existingStore.getBannerMobileUrl());
             }
-            
+
             // Faz upload do novo banner para o storage (retorna a KEY)
             String bannerKey = imageService.uploadBase64Image(
-                request.bannerMobile().base64Image(),
-                request.bannerMobile().fileName(),
-                request.bannerMobile().contentType()
-            );
-            
+                    request.bannerMobile().base64Image(),
+                    request.bannerMobile().fileName(),
+                    request.bannerMobile().contentType());
+
             // Define a KEY no objeto store (não a URL)
             existingStore.setBannerMobileUrl(bannerKey);
         }
-        
+
         // Atualiza a entidade com os dados do DTO usando MapStruct (exceto banners)
         storeMapper.updateThemeConfigFromDto(request, existingStore);
-        
+
         // Salva as alterações
         Store updatedStore = storeRepository.save(existingStore);
-        
+
         // Converte para DTO de resposta
         return toStoreResponse(updatedStore);
     }
 
     /**
-     * Atualiza a configuração de tema de uma loja (método que trabalha com entidades)
+     * Atualiza a configuração de tema de uma loja (método que trabalha com
+     * entidades)
      */
     @Transactional
     public Store updateThemeConfig(UUID storeId, Store updatedStore) {
@@ -408,7 +461,7 @@ public class StoreService {
     }
 
     /**
-     * Adiciona um novo usuário a uma loja 
+     * Adiciona um novo usuário a uma loja
      */
     @Transactional
     public StoreUserResponse addUserToStore(UUID storeId, UUID userId, UserRole role) {
@@ -417,7 +470,7 @@ public class StoreService {
     }
 
     /**
-     * Adiciona um novo usuário a uma loja 
+     * Adiciona um novo usuário a uma loja
      */
     @Transactional
     public StoreUser addUserToStoreEntity(UUID storeId, UUID userId, UserRole role) {
@@ -431,7 +484,8 @@ public class StoreService {
         boolean hasPermission = userHasPermissionToEditStore(store);
 
         if (!hasPermission) {
-            throw new InsufficientPermissionException("Usuário não tem permissão para adicionar outros usuários à esta loja.");
+            throw new InsufficientPermissionException(
+                    "Usuário não tem permissão para adicionar outros usuários à esta loja.");
         }
 
         User user = userRepository.findById(userId)
@@ -461,63 +515,62 @@ public class StoreService {
         if (store.getLogoUrl() != null && !store.getLogoUrl().isEmpty()) {
             logoUrl = imageService.getPresignedUrl(store.getLogoUrl());
         }
-        
+
         // Converte banner URLs (KEYS) para presigned URLs se existirem
         String bannerDesktopUrl = null;
         if (store.getBannerDesktopUrl() != null && !store.getBannerDesktopUrl().isEmpty()) {
             bannerDesktopUrl = imageService.getPresignedUrl(store.getBannerDesktopUrl());
         }
-        
+
         String bannerTabletUrl = null;
         if (store.getBannerTabletUrl() != null && !store.getBannerTabletUrl().isEmpty()) {
             bannerTabletUrl = imageService.getPresignedUrl(store.getBannerTabletUrl());
         }
-        
+
         String bannerMobileUrl = null;
         if (store.getBannerMobileUrl() != null && !store.getBannerMobileUrl().isEmpty()) {
             bannerMobileUrl = imageService.getPresignedUrl(store.getBannerMobileUrl());
         }
-        
+
         // Busca o plano ativo da loja
         PayingPlan activePlan = null;
         var currentActivePlan = billingRepository.findCurrentActivePlan(store);
         if (currentActivePlan.isPresent()) {
             activePlan = currentActivePlan.get().getPayingPlan();
         }
-        
+
         // Usa o mapper para converter a entidade para DTO base
         StoreResponse mappedResponse = storeResponseMapper.toDto(store);
-        
+
         // Cria a resposta final com presigned URLs e plano ativo
         return new StoreResponse(
-            mappedResponse.id(),
-            mappedResponse.name(),
-            mappedResponse.description(),
-            mappedResponse.slug(),
-            mappedResponse.address(),
-            mappedResponse.phoneNumber(),
-            mappedResponse.email(),
-            mappedResponse.instagram(),
-            mappedResponse.facebook(),
-            logoUrl,
-            mappedResponse.primaryColor(),
-            mappedResponse.themeMode(),
-            mappedResponse.primaryFont(),
-            mappedResponse.secondaryFont(),
-            mappedResponse.roundedLevel(),
-            mappedResponse.productCardShadow(),
-            bannerDesktopUrl,
-            bannerTabletUrl,
-            bannerMobileUrl,
-            mappedResponse.backgroundType(),
-            mappedResponse.backgroundEnabled(),
-            mappedResponse.backgroundOpacity(),
-            mappedResponse.backgroundColor(),
-            mappedResponse.backgroundConfigJson(),
-            activePlan,
-            mappedResponse.createdAt(),
-            mappedResponse.updatedAt()
-        );
+                mappedResponse.id(),
+                mappedResponse.name(),
+                mappedResponse.description(),
+                mappedResponse.slug(),
+                mappedResponse.address(),
+                mappedResponse.phoneNumber(),
+                mappedResponse.email(),
+                mappedResponse.instagram(),
+                mappedResponse.facebook(),
+                logoUrl,
+                mappedResponse.primaryColor(),
+                mappedResponse.themeMode(),
+                mappedResponse.primaryFont(),
+                mappedResponse.secondaryFont(),
+                mappedResponse.roundedLevel(),
+                mappedResponse.productCardShadow(),
+                bannerDesktopUrl,
+                bannerTabletUrl,
+                bannerMobileUrl,
+                mappedResponse.backgroundType(),
+                mappedResponse.backgroundEnabled(),
+                mappedResponse.backgroundOpacity(),
+                mappedResponse.backgroundColor(),
+                mappedResponse.backgroundConfigJson(),
+                activePlan,
+                mappedResponse.createdAt(),
+                mappedResponse.updatedAt());
     }
 
     /**
@@ -531,7 +584,8 @@ public class StoreService {
         boolean hasPermission = userHasPermissionToEditStore(store);
 
         if (!hasPermission) {
-            throw new InsufficientPermissionException("Usuário não tem permissão para adicionar outros usuários à esta loja.");
+            throw new InsufficientPermissionException(
+                    "Usuário não tem permissão para adicionar outros usuários à esta loja.");
         }
 
         User user = userRepository.findById(userId)
@@ -551,7 +605,7 @@ public class StoreService {
     }
 
     /**
-     * Busca uma loja por ID 
+     * Busca uma loja por ID
      */
     public StoreResponse getStoreById(UUID storeId) {
         Store store = getStoreByIdEntity(storeId);
@@ -562,12 +616,13 @@ public class StoreService {
      * Busca uma loja por ID (método que retorna entidade)
      */
     public Store getStoreByIdEntity(UUID storeId) {
-        var store =  storeRepository.findById(storeId)
+        var store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new ObjectNotFoundException("Loja não encontrada"));
 
         boolean hasPermission = userHasPermissionToEditStore(store);
         if (!hasPermission) {
-            throw new InsufficientPermissionException("Usuário não tem permissão para adicionar outros usuários à esta loja.");
+            throw new InsufficientPermissionException(
+                    "Usuário não tem permissão para adicionar outros usuários à esta loja.");
         }
 
         return store;
@@ -582,12 +637,13 @@ public class StoreService {
     }
 
     /**
-     * Busca uma loja por slug (método que retorna entidade, público, sem autenticação)
+     * Busca uma loja por slug (método que retorna entidade, público, sem
+     * autenticação)
      */
     public Store getStoreBySlugEntity(String slug) {
         Store store = storeRepository.findBySlug(slug)
                 .orElseThrow(() -> new ObjectNotFoundException("Loja não encontrada com o slug: " + slug));
-        
+
         return store;
     }
 
@@ -618,120 +674,120 @@ public class StoreService {
      */
     public StorePublicResponse getPublicStoreBySlug(String slug) {
         Store store = getStoreBySlugEntity(slug);
-        
+
         // Busca categorias e apenas produtos disponíveis da loja
         List<Category> categories = getCategoriesByStore(store);
         List<Product> allProducts = getAvailableProductsByStore(store);
-        
+
         // Agrupa produtos por categoria
-        Map<Category, List<Product>> productsByCategory = 
-            allProducts.stream()
+        Map<Category, List<Product>> productsByCategory = allProducts.stream()
                 .filter(p -> p.getCategory() != null)
                 .collect(Collectors.groupingBy(Product::getCategory));
-        
+
         // Cria categorias com produtos
         List<CategoryWithProductsResponse> categoriesWithProducts = categories.stream()
-            .map(category -> {
-                // Garante ordenação por displayOrder (valores menores primeiro)
-                // Produtos sem displayOrder aparecem por último
-                List<Product> categoryProducts = 
-                    productsByCategory.getOrDefault(category, List.of()).stream()
-                        .sorted((p1, p2) -> {
-                            Integer order1 = p1.getDisplayOrder();
-                            Integer order2 = p2.getDisplayOrder();
-                            
-                            if (order1 == null && order2 == null) return 0;
-                            if (order1 == null) return 1; // null vai para o final
-                            if (order2 == null) return -1; // null vai para o final
-                            
-                            return order1.compareTo(order2);
-                        })
-                        .collect(Collectors.toList());
-                
-                List<ProductBasicResponse> productsDto = productBasicMapper.toDtoList(categoryProducts);
-                
-                // Gera presigned URL para imagem da categoria se existir
-                String categoryImageUrl = category.getImageUrl() != null
-                    ? imageService.getPresignedUrl(category.getImageUrl())
-                    : null;
-                
-                return new CategoryWithProductsResponse(
-                    category.getId(),
-                    category.getName(),
-                    category.getDescription(),
-                    categoryImageUrl,
-                    category.getStore().getId(),
-                    productsDto,
-                    category.getCreatedAt(),
-                    category.getUpdatedAt()
-                );
-            })
-            .collect(Collectors.toList());
-        
+                .map(category -> {
+                    // Garante ordenação por displayOrder (valores menores primeiro)
+                    // Produtos sem displayOrder aparecem por último
+                    List<Product> categoryProducts = productsByCategory.getOrDefault(category, List.of()).stream()
+                            .sorted((p1, p2) -> {
+                                Integer order1 = p1.getDisplayOrder();
+                                Integer order2 = p2.getDisplayOrder();
+
+                                if (order1 == null && order2 == null)
+                                    return 0;
+                                if (order1 == null)
+                                    return 1; // null vai para o final
+                                if (order2 == null)
+                                    return -1; // null vai para o final
+
+                                return order1.compareTo(order2);
+                            })
+                            .collect(Collectors.toList());
+
+                    List<ProductBasicResponse> productsDto = productBasicMapper.toDtoList(categoryProducts);
+
+                    // Gera presigned URL para imagem da categoria se existir
+                    String categoryImageUrl = category.getImageUrl() != null
+                            ? imageService.getPresignedUrl(category.getImageUrl())
+                            : null;
+
+                    return new CategoryWithProductsResponse(
+                            category.getId(),
+                            category.getName(),
+                            category.getDescription(),
+                            categoryImageUrl,
+                            category.getStore().getId(),
+                            productsDto,
+                            category.getCreatedAt(),
+                            category.getUpdatedAt());
+                })
+                .collect(Collectors.toList());
+
         // Busca produtos sem categoria
-        List<Product> productsWithoutCategory = 
-            allProducts.stream()
+        List<Product> productsWithoutCategory = allProducts.stream()
                 .filter(p -> p.getCategory() == null)
                 // Ordena por displayOrder (valores menores primeiro)
                 // Produtos sem displayOrder aparecem por último
                 .sorted((p1, p2) -> {
                     Integer order1 = p1.getDisplayOrder();
                     Integer order2 = p2.getDisplayOrder();
-                    
-                    if (order1 == null && order2 == null) return 0;
-                    if (order1 == null) return 1; // null vai para o final
-                    if (order2 == null) return -1; // null vai para o final
-                    
+
+                    if (order1 == null && order2 == null)
+                        return 0;
+                    if (order1 == null)
+                        return 1; // null vai para o final
+                    if (order2 == null)
+                        return -1; // null vai para o final
+
                     return order1.compareTo(order2);
                 })
                 .collect(Collectors.toList());
-        
+
         // Adiciona produtos sem categoria em uma categoria especial
         if (!productsWithoutCategory.isEmpty()) {
             List<ProductBasicResponse> productsDto = productBasicMapper.toDtoList(productsWithoutCategory);
             categoriesWithProducts.add(new CategoryWithProductsResponse(
-                null,
-                "Outros",
-                "Produtos sem categoria",
-                null, // Sem imagem para categoria "Outros"
-                store.getId(),
-                productsDto,
-                null,
-                null
-            ));
+                    null,
+                    "Outros",
+                    "Produtos sem categoria",
+                    null, // Sem imagem para categoria "Outros"
+                    store.getId(),
+                    productsDto,
+                    null,
+                    null));
         }
-        
+
         StoreResponse storeResponse = toStoreResponse(store);
-        
+
         return new StorePublicResponse(
-            storeResponse.id(),
-            storeResponse.name(),
-            storeResponse.description(),
-            storeResponse.slug(),
-            storeResponse.address(),
-            storeResponse.phoneNumber(),
-            storeResponse.email(),
-            storeResponse.instagram(),
-            storeResponse.facebook(),
-            storeResponse.logoUrl(),
-            storeResponse.primaryColor(),
-            storeResponse.themeMode(),
-            storeResponse.primaryFont(),
-            storeResponse.secondaryFont(),
-            storeResponse.roundedLevel(),
-            storeResponse.productCardShadow(),
-            storeResponse.bannerDesktopUrl(),
-            storeResponse.bannerTabletUrl(),
-            storeResponse.bannerMobileUrl(),
-            storeResponse.backgroundType(),
-            storeResponse.backgroundEnabled(),
-            storeResponse.backgroundOpacity(),
-            storeResponse.backgroundColor(),
-            storeResponse.backgroundConfigJson(),
-            categoriesWithProducts,
-            storeResponse.createdAt(),
-            storeResponse.updatedAt()
-        );
+                storeResponse.id(),
+                storeResponse.name(),
+                storeResponse.description(),
+                storeResponse.slug(),
+                storeResponse.address(),
+                storeResponse.phoneNumber(),
+                storeResponse.email(),
+                storeResponse.instagram(),
+                storeResponse.facebook(),
+                storeResponse.logoUrl(),
+                storeResponse.primaryColor(),
+                storeResponse.themeMode(),
+                storeResponse.primaryFont(),
+                storeResponse.secondaryFont(),
+                storeResponse.roundedLevel(),
+                storeResponse.productCardShadow(),
+                storeResponse.bannerDesktopUrl(),
+                storeResponse.bannerTabletUrl(),
+                storeResponse.bannerMobileUrl(),
+                storeResponse.backgroundType(),
+                storeResponse.backgroundEnabled(),
+                storeResponse.backgroundOpacity(),
+                storeResponse.backgroundColor(),
+                storeResponse.backgroundConfigJson(),
+                categoriesWithProducts,
+                storeResponse.createdAt(),
+                storeResponse.updatedAt());
     }
 
     /**
@@ -774,7 +830,8 @@ public class StoreService {
                 .toList();
     }
 
-    // O usuário tem que pertencer a lista de storeusers dessa store, e ter role superior a EMPLOYEE
+    // O usuário tem que pertencer a lista de storeusers dessa store, e ter role
+    // superior a EMPLOYEE
     private boolean userHasPermissionToEditStore(Store existingStore) {
         var storeUsers = storeUserRepository.findByStore(existingStore);
         var currentUser = jwtService.getCurrentAuthenticatedUser();
@@ -795,33 +852,41 @@ public class StoreService {
     }
 
     /**
+     * Verifica se um slug está disponível
+     * Retorna true se o slug não existe (está disponível), false caso contrário
+     */
+    public boolean isSlugAvailable(String slug) {
+        if (slug == null || slug.trim().isEmpty()) {
+            return false;
+        }
+        return !storeRepository.existsBySlug(slug.trim().toLowerCase());
+    }
+
+    /**
      * Obtém a primeira loja do usuário autenticado
      * Para MVP, assumimos que cada usuário tem apenas uma loja
      */
     public Store getCurrentUserStore() {
         var currentUser = jwtService.getCurrentAuthenticatedUser();
         List<StoreUser> userStores = getUserStoresEntities(currentUser.getId());
-        
+
         if (userStores.isEmpty()) {
             throw new ObjectNotFoundException("Usuário não possui lojas associadas");
         }
-        
+
         return userStores.get(0).getStore();
     }
 
-
-    private void processStoreLogo(CreateStoreRequest request, Store store){
+    private void processStoreLogo(CreateStoreRequest request, Store store) {
         // Processa upload do logo se fornecido
         if (request.logo() != null) {
             String logoKey = imageService.uploadStoreLogo(
                     request.logo().base64Image(),
                     request.logo().fileName(),
-                    request.logo().contentType()
-            );
+                    request.logo().contentType());
             store.setLogoUrl(logoKey);
             storeRepository.save(store);
         }
     }
 
 }
-

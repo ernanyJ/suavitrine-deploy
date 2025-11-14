@@ -14,6 +14,7 @@ import com.dalivim.suavitrine.suavitrine.infra.exceptions.IllegalUserArgumentExc
 import com.dalivim.suavitrine.suavitrine.services.billing.AbacateBillingService;
 import com.dalivim.suavitrine.suavitrine.services.billing.IBillingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.sentry.Sentry;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +47,8 @@ public class BillingController {
         BillingResponse response = billingService.createBillingRequest(
                 storeId,
                 request.payingPlan(),
-                request.planDuration()
+                request.planDuration(),
+                request.taxId()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -109,12 +111,15 @@ public class BillingController {
 
             return ResponseEntity.ok().build();
         } catch (IOException e) {
+            Sentry.captureException(e);
             log.error("Erro de IO ao processar webhook: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (IllegalUserArgumentException e) {
+            Sentry.captureException(e);
             log.error("Argumento inválido no webhook: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (Exception e) {
+            Sentry.captureException(e);
             log.error("Erro inesperado ao processar webhook: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

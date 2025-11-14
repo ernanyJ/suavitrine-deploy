@@ -3,6 +3,7 @@ package com.dalivim.suavitrine.suavitrine.services;
 import com.dalivim.suavitrine.suavitrine.dtos.ProductImageRequest;
 import com.dalivim.suavitrine.suavitrine.infra.exceptions.IllegalUserArgumentException;
 import com.dalivim.suavitrine.suavitrine.infra.storage.StorageService;
+import io.sentry.Sentry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class ImageService {
             return key;
 
         } catch (Exception e) {
+            Sentry.captureException(e);
             throw new IllegalUserArgumentException("Erro ao fazer upload da imagem: " + e.getMessage());
         }
     }
@@ -64,6 +66,7 @@ public class ImageService {
         try {
             return storageService.getPresignedUrl(bucketName, key, java.time.Duration.ofHours(1));
         } catch (Exception e) {
+            Sentry.captureException(e);
             System.err.println("Erro ao gerar presigned URL: " + e.getMessage());
             return null;
         }
@@ -110,6 +113,7 @@ public class ImageService {
             return key;
 
         } catch (Exception e) {
+            Sentry.captureException(e);
             throw new IllegalUserArgumentException("Erro ao fazer upload do logo: " + e.getMessage());
         }
     }
@@ -126,6 +130,7 @@ public class ImageService {
             storageService.deleteFile(bucketName, key);
         } catch (Exception e) {
             // Log error but don't throw - deletion of images should not fail the main operation
+            Sentry.captureException(e);
             System.err.println("Erro ao deletar imagem do storage: " + e.getMessage());
         }
     }

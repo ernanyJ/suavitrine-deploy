@@ -5,7 +5,8 @@ import com.dalivim.suavitrine.suavitrine.entities.billing.PlanDuration;
 
 public record CreateBillingRequest(
         PayingPlan payingPlan,
-        PlanDuration planDuration
+        PlanDuration planDuration,
+        String taxId
 ) {
 }
 

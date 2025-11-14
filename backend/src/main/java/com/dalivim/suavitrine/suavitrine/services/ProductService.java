@@ -9,6 +9,7 @@ import com.dalivim.suavitrine.suavitrine.infra.exceptions.ObjectNotFoundExceptio
 import com.dalivim.suavitrine.suavitrine.infra.security.JwtService;
 import com.dalivim.suavitrine.suavitrine.repositories.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -37,7 +39,7 @@ public class ProductService {
     public ProductResponse createProduct(CreateProductRequest request) {
         // Converte o DTO para Entity usando MapStruct
         Product product = productMapper.toEntity(request);
-        
+
         // Converte variações se fornecidas
         List<ProductVariation> variations = null;
         if (request.variations() != null && !request.variations().isEmpty()) {
@@ -46,19 +48,19 @@ public class ProductService {
 
         // Chama o método que trabalha com entidades
         Product createdProduct = createProduct(
-                product, 
-                request.storeId(), 
+                product,
+                request.storeId(),
                 request.categoryId(),
                 request.images(),
-                variations
-        );
-        
+                variations);
+
         // Converte para DTO de resposta
         return productResponseMapper.toDto(createdProduct);
     }
 
     @Transactional
-    public Product createProduct(Product product, UUID storeId, UUID categoryId, List<ProductImageRequest> imageRequests, List<ProductVariation> variations) {
+    public Product createProduct(Product product, UUID storeId, UUID categoryId,
+            List<ProductImageRequest> imageRequests, List<ProductVariation> variations) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new ObjectNotFoundException("Loja não encontrada"));
 
@@ -99,24 +101,24 @@ public class ProductService {
         // Adiciona as imagens se fornecidas
         if (imageRequests != null && !imageRequests.isEmpty()) {
             validateImageCount(imageRequests);
-            
+
             // Faz upload das imagens para o storage (retorna as KEYS)
             List<String> uploadedKeys = new ArrayList<>();
             for (ProductImageRequest imageRequest : imageRequests) {
                 String key = imageService.uploadBase64Image(
-                    imageRequest.base64Image(),
-                    imageRequest.fileName(),
-                    imageRequest.contentType()
-                );
+                        imageRequest.base64Image(),
+                        imageRequest.fileName(),
+                        imageRequest.contentType());
                 uploadedKeys.add(key);
             }
-            
+
             // Cria as entidades ProductImage com as KEYS (não URLs)
             List<ProductImage> savedImages = new ArrayList<>();
             for (int i = 0; i < uploadedKeys.size(); i++) {
                 ProductImage image = new ProductImage();
                 image.setUrl(uploadedKeys.get(i)); // Store the KEY, not URL
-                image.setDisplayOrder(imageRequests.get(i).displayOrder() != null ? imageRequests.get(i).displayOrder() : i);
+                image.setDisplayOrder(
+                        imageRequests.get(i).displayOrder() != null ? imageRequests.get(i).displayOrder() : i);
                 image.setProduct(savedProduct);
                 savedImages.add(productImageRepository.save(image));
             }
@@ -149,10 +151,10 @@ public class ProductService {
         if (!userHasPermissionToEditStore(existingProduct.getStore())) {
             throw new InsufficientPermissionException("Usuário não tem permissão para atualizar este produto.");
         }
-        
+
         // Atualiza a entidade com os dados do DTO usando MapStruct
         productMapper.updateEntityFromDto(request, existingProduct);
-        
+
         // Converte variações se fornecidas
         List<ProductVariation> variations = null;
         if (request.variations() != null && !request.variations().isEmpty()) {
@@ -161,13 +163,12 @@ public class ProductService {
 
         // Chama o método que trabalha com entidades
         Product updatedProduct = updateProduct(
-                productId, 
-                existingProduct, 
+                productId,
+                existingProduct,
                 request.categoryId(),
                 request.images(),
-                variations
-        );
-        
+                variations);
+
         // Converte para DTO de resposta
         return productResponseMapper.toDto(updatedProduct);
     }
@@ -176,7 +177,8 @@ public class ProductService {
      * Atualiza um produto existente (método que trabalha com entidades)
      */
     @Transactional
-    public Product updateProduct(UUID productId, Product updatedProduct, UUID categoryId, List<ProductImageRequest> newImageRequests, List<ProductVariation> newVariations) {
+    public Product updateProduct(UUID productId, Product updatedProduct, UUID categoryId,
+            List<ProductGenericRequest> newImageRequests, List<ProductVariation> newVariations) {
         Product existingProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new ObjectNotFoundException("Produto não encontrado"));
 
@@ -188,7 +190,8 @@ public class ProductService {
             throw new InsufficientPermissionException("Usuário não tem permissão para atualizar este produto.");
         }
 
-        // Atualiza os campos básicos do produto existente com os valores do produto atualizado
+        // Atualiza os campos básicos do produto existente com os valores do produto
+        // atualizado
 
         // Atualiza os campos básicos
         if (updatedProduct.getTitle() != null) {
@@ -214,61 +217,30 @@ public class ProductService {
         }
 
         // Atualiza a categoria se fornecida
+        Category newCategory = null;
+
         if (categoryId != null) {
-            Category category = categoryRepository.findById(categoryId)
+            newCategory = categoryRepository.findById(categoryId)
                     .orElseThrow(() -> new ObjectNotFoundException("Categoria não encontrada"));
 
-            if (category.getDeletedAt() != null) {
+            if (newCategory.getDeletedAt() != null) {
                 throw new IllegalUserArgumentException("Categoria foi deletada");
             }
 
-            if (!category.getStore().getId().equals(existingProduct.getStore().getId())) {
+            if (!newCategory.getStore().getId().equals(existingProduct.getStore().getId())) {
                 throw new IllegalUserArgumentException("Categoria não pertence à mesma loja do produto");
             }
-
-            existingProduct.setCategory(category);
         }
 
-        // Atualiza as imagens se fornecidas
-        if (newImageRequests != null) {
-            validateImageCount(newImageRequests);
-            
-            // Remove imagens antigas (soft delete e delete do storage)
-            List<ProductImage> oldImages = productImageRepository.findByProductAndDeletedAtIsNull(existingProduct);
-            for (ProductImage oldImage : oldImages) {
-                // Delete a imagem antiga do storage
-                imageService.deleteImage(oldImage.getUrl());
-                oldImage.setDeletedAt(Instant.now());
-                productImageRepository.save(oldImage);
-            }
+        existingProduct.setCategory(newCategory);
 
-            // Faz upload das novas imagens para o storage (retorna KEYS)
-            List<String> uploadedKeys = new ArrayList<>();
-            for (ProductImageRequest imageRequest : newImageRequests) {
-                String key = imageService.uploadBase64Image(
-                    imageRequest.base64Image(),
-                    imageRequest.fileName(),
-                    imageRequest.contentType()
-                );
-                uploadedKeys.add(key);
-            }
-
-            // Cria as entidades ProductImage com as KEYS (não URLs)
-            List<ProductImage> savedImages = new ArrayList<>();
-            for (int i = 0; i < uploadedKeys.size(); i++) {
-                ProductImage image = new ProductImage();
-                image.setUrl(uploadedKeys.get(i)); // Store the KEY
-                image.setDisplayOrder(newImageRequests.get(i).displayOrder() != null ? newImageRequests.get(i).displayOrder() : i);
-                image.setProduct(existingProduct);
-                savedImages.add(productImageRepository.save(image));
-            }
-            existingProduct.setImages(savedImages);
-        }
+        updateProductImages(newImageRequests, existingProduct);
 
         // Atualiza as variações se fornecidas
         if (newVariations != null) {
             // Remove variações antigas (soft delete)
-            List<ProductVariation> oldVariations = productVariationRepository.findByProductAndDeletedAtIsNull(existingProduct);
+            List<ProductVariation> oldVariations = productVariationRepository
+                    .findByProductAndDeletedAtIsNull(existingProduct);
             for (ProductVariation oldVariation : oldVariations) {
                 oldVariation.setDeletedAt(Instant.now());
                 productVariationRepository.save(oldVariation);
@@ -338,12 +310,10 @@ public class ProductService {
         return product;
     }
 
-
     public List<ProductResponse> getProductsByStore(UUID storeId) {
         List<Product> products = getProductsByStoreEntity(storeId);
         return productResponseMapper.toDtoList(products);
     }
-
 
     public List<Product> getProductsByStoreEntity(UUID storeId) {
         Store store = storeRepository.findById(storeId)
@@ -352,12 +322,10 @@ public class ProductService {
         return productRepository.findByStoreAndDeletedAtIsNull(store);
     }
 
-
     public List<ProductResponse> getProductsByCategory(UUID categoryId) {
         List<Product> products = getProductsByCategoryEntity(categoryId);
         return productResponseMapper.toDtoList(products);
     }
-
 
     public List<Product> getProductsByCategoryEntity(UUID categoryId) {
         Category category = categoryRepository.findById(categoryId)
@@ -390,7 +358,8 @@ public class ProductService {
         }
 
         if (!userHasPermissionToEditStore(category.getStore())) {
-            throw new InsufficientPermissionException("Usuário não tem permissão para atualizar a ordem dos produtos desta categoria.");
+            throw new InsufficientPermissionException(
+                    "Usuário não tem permissão para atualizar a ordem dos produtos desta categoria.");
         }
 
         // Busca todos os produtos da categoria para validar se pertencem à categoria
@@ -402,7 +371,8 @@ public class ProductService {
         // Valida se todos os produtos fornecidos pertencem à categoria
         for (UUID productId : productIds) {
             if (!validProductIds.contains(productId)) {
-                throw new IllegalUserArgumentException("Produto com ID " + productId + " não pertence à categoria especificada");
+                throw new IllegalUserArgumentException(
+                        "Produto com ID " + productId + " não pertence à categoria especificada");
             }
         }
 
@@ -434,7 +404,8 @@ public class ProductService {
         }
 
         if (!userHasPermissionToEditStore(product.getStore())) {
-            throw new InsufficientPermissionException("Usuário não tem permissão para alterar a disponibilidade deste produto.");
+            throw new InsufficientPermissionException(
+                    "Usuário não tem permissão para alterar a disponibilidade deste produto.");
         }
 
         // Alterna o valor de available (se null, considera como false)
@@ -443,5 +414,106 @@ public class ProductService {
 
         return productResponseMapper.toDto(updatedProduct);
     }
-}
 
+    private void updateProductImages(List<ProductGenericRequest> newImageRequests, Product existingProduct) {
+        log.debug("Iniciando processo de atualizar imagens do produto ID: {}", existingProduct.getId());
+        
+        var productCurrentImages = existingProduct.getImages();
+        int currentImagesCount = productCurrentImages != null ? productCurrentImages.size() : 0;
+        int newImageRequestsCount = newImageRequests != null ? newImageRequests.size() : 0;
+        
+        log.debug("Estado inicial - Imagens atuais: {}, Requisições de imagens recebidas: {}", 
+                currentImagesCount, newImageRequestsCount);
+
+        // Remove images that are not in the newImageRequests and delete them from the storage
+        List<ProductImage> imagesRemaining = new ArrayList<>();
+        List<ProductImage> toRemove = new ArrayList<>();
+        
+        log.debug("Analisando imagens existentes para remoção...");
+        for (ProductImage image : productCurrentImages) {
+            boolean shouldKeep = newImageRequests.stream()
+                    .anyMatch(request -> request.existingImage() != null && 
+                            request.existingImage().equals(image.getId()));
+            
+            if (!shouldKeep) {
+                log.debug("Imagem ID: {} será removida (URL: {})", image.getId(), image.getUrl());
+                imageService.deleteImage(image.getUrl());
+                toRemove.add(image);
+                image.setDeletedAt(Instant.now());
+            } else {
+                log.debug("Imagem ID: {} será mantida", image.getId());
+                imagesRemaining.add(image);
+            }
+        }
+        
+        log.debug("Remoção concluída - Imagens removidas: {}, Imagens mantidas: {}", 
+                toRemove.size(), imagesRemaining.size());
+
+        existingProduct.getImages().removeAll(toRemove);
+        productImageRepository.deleteAll(toRemove);
+
+        // Create the new images
+        List<ProductImage> newImagesToCreate = new ArrayList<>();
+        var newImages = newImageRequests.stream()
+                .filter(request -> request.existingImage() == null)
+                .toList();
+        
+        log.debug("Criando novas imagens - Total de novas imagens a criar: {}", newImages.size());
+        
+        for (int i = 0; i < newImages.size(); i++) {
+            ProductGenericRequest newReq = newImages.get(i);
+            log.debug("Fazendo upload da nova imagem {}/{} - Nome do arquivo: {}", 
+                    i + 1, newImages.size(), newReq.newImage().fileName());
+            
+            String key = imageService.uploadBase64Image(
+                    newReq.newImage().base64Image(),
+                    newReq.newImage().fileName(),
+                    newReq.newImage().contentType());
+
+            log.debug("Upload concluído - Key gerada: {}", key);
+
+            ProductImage newImage = new ProductImage();
+            newImage.setUrl(key);
+            newImage.setDisplayOrder(null); // will be set later
+            newImage.setProduct(existingProduct);
+            newImagesToCreate.add(productImageRepository.save(newImage));
+            
+            log.debug("Nova imagem salva no banco - ID: {}, Key: {}", newImage.getId(), key);
+        }
+        
+        log.debug("Criação de novas imagens concluída - Total criado: {}", newImagesToCreate.size());
+
+        // agora temos imagesRemaining e newImagesToCreate, basta ordenar na ordem
+        // original de newImageRequests e adicionar ao existingProduct
+        log.debug("Iniciando ordenação das imagens conforme ordem das requisições...");
+        List<ProductImage> allImages = new ArrayList<>();
+        int newImageIndex = 0;
+        int generalIndex = 0;
+        
+        for (ProductGenericRequest imageRequest : newImageRequests) {
+            if (imageRequest.existingImage() != null) {
+                var img = imagesRemaining.stream()
+                        .filter(image -> image.getId().equals(imageRequest.existingImage()))
+                        .findFirst()
+                        .orElseThrow(() -> new ObjectNotFoundException("Imagem não encontrada"));
+                
+                log.debug("Ordenando imagem existente - ID: {}, Nova ordem: {}", 
+                        img.getId(), generalIndex);
+                img.setDisplayOrder(generalIndex);
+                allImages.add(img);
+            } else {
+                var img = newImagesToCreate.get(newImageIndex);
+                log.debug("Ordenando nova imagem - ID: {}, Nova ordem: {}", 
+                        img.getId(), generalIndex);
+                img.setDisplayOrder(generalIndex);
+                allImages.add(img);
+                newImageIndex++;
+            }
+            generalIndex++;
+        }
+        
+        log.debug("Processo de atualização de imagens concluído - Total de imagens finais: {}, " +
+                "Ordem final aplicada de 0 a {}", allImages.size(), generalIndex - 1);
+    }
+
+}

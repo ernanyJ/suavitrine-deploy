@@ -2,6 +2,7 @@ package com.dalivim.suavitrine.suavitrine.services;
 
 import com.dalivim.suavitrine.suavitrine.dtos.*;
 import com.dalivim.suavitrine.suavitrine.entities.Category;
+import com.dalivim.suavitrine.suavitrine.entities.Product;
 import com.dalivim.suavitrine.suavitrine.mappers.*;
 import com.dalivim.suavitrine.suavitrine.entities.Store;
 import com.dalivim.suavitrine.suavitrine.entities.UserRole;
@@ -10,6 +11,7 @@ import com.dalivim.suavitrine.suavitrine.infra.exceptions.InsufficientPermission
 import com.dalivim.suavitrine.suavitrine.infra.exceptions.ObjectNotFoundException;
 import com.dalivim.suavitrine.suavitrine.infra.security.JwtService;
 import com.dalivim.suavitrine.suavitrine.repositories.CategoryRepository;
+import com.dalivim.suavitrine.suavitrine.repositories.ProductRepository;
 import com.dalivim.suavitrine.suavitrine.repositories.StoreRepository;
 import com.dalivim.suavitrine.suavitrine.repositories.StoreUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class CategoryService {
     private final JwtService jwtService;
     private final CategoryMapper categoryMapper;
     private final CategoryResponseMapper categoryResponseMapper;
+    private final ProductRepository productRepository;
 
     /**
      * Cria uma nova categoria (método que recebe DTO)
@@ -98,6 +101,14 @@ public class CategoryService {
         // Atualiza a entidade com os dados do DTO usando MapStruct
         categoryMapper.updateEntityFromDto(request, existingCategory);
         
+        // Processa deleção de imagem se solicitado
+        if (Boolean.TRUE.equals(request.imageDelete())) {
+            if (existingCategory.getImageUrl() != null && !existingCategory.getImageUrl().isEmpty()) {
+                imageService.deleteImage(existingCategory.getImageUrl());
+                existingCategory.setImageUrl(null);
+            }
+        }
+
         // Atualiza a imagem se fornecida
         if (request.image() != null) {
             // Remove imagem antiga (soft delete e delete do storage)
@@ -171,6 +182,9 @@ public class CategoryService {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ObjectNotFoundException("Categoria não encontrada"));
 
+
+        productRepository.detachCategoryFromProducts(category);
+        
         if (category.getDeletedAt() != null) {
             throw new IllegalUserArgumentException("Categoria já foi deletada");
         }
@@ -187,7 +201,6 @@ public class CategoryService {
         category.setDeletedAt(Instant.now());
         categoryRepository.save(category);
     }
-
     /**
      * Busca uma categoria por ID (método que retorna DTO)
      */
@@ -268,5 +281,6 @@ public class CategoryService {
                         (su.getRole() == UserRole.OWNER || su.getRole() == UserRole.MANAGER) &&
                         su.getDeletedAt() == null);
     }
+
 }
 

@@ -162,5 +162,15 @@ public class StoreController {
         List<StoreUserResponse> response = storeService.getStoreUsers(storeId);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Verifica se um slug está disponível
+     */
+    @GetMapping("/check-slug-availability")
+    @Operation(summary = "Verificar disponibilidade de slug", description = "Retorna true se o slug está disponível, false caso contrário")
+    public ResponseEntity<Boolean> checkSlugAvailability(@RequestParam String slug) {
+        boolean isAvailable = storeService.isSlugAvailable(slug);
+        return ResponseEntity.ok(isAvailable);
+    }
 }
 

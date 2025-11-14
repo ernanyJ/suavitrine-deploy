@@ -49,6 +49,21 @@ services:
     #   - postgres
     #   - minio
 
+  
+  drizzle:
+    image: ghcr.io/drizzle-team/gateway:latest
+    container_name: drizzle-gateway
+    restart: always
+    ports:
+      - "4983:4983"
+    environment:
+      - PORT=4983
+      - STORE_PATH=/app
+      - MASTERPASS=${DRIZZLE_MASTER_PASSWORD}
+    volumes:
+      - drizzle_gateway_data:/app
+
 volumes:
   postgres_data:
   minio_data:
+  drizzle_gateway_data:

@@ -4,6 +4,7 @@ import com.dalivim.suavitrine.suavitrine.dtos.AuthenticationResponse;
 import com.dalivim.suavitrine.suavitrine.dtos.LoginRequest;
 import com.dalivim.suavitrine.suavitrine.dtos.RegisterRequest;
 import com.dalivim.suavitrine.suavitrine.services.AuthenticationService;
+import io.sentry.Sentry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -33,6 +34,7 @@ public class AuthenticationController {
             AuthenticationResponse response = authenticationService.register(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
+            Sentry.captureException(e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new com.dalivim.suavitrine.suavitrine.dtos.ErrorResponse(
                             java.time.Instant.now(),
@@ -55,6 +57,7 @@ public class AuthenticationController {
             AuthenticationResponse response = authenticationService.login(request);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
+            Sentry.captureException(e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new com.dalivim.suavitrine.suavitrine.dtos.ErrorResponse(
                             java.time.Instant.now(),

@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import com.dalivim.suavitrine.suavitrine.entities.Store;
 import com.dalivim.suavitrine.suavitrine.entities.StoreUser;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -45,6 +46,12 @@ public class Billing {
     private PlanDuration planDuration;
 
     private int price;
+
+    /**
+     * CPF ou CNPJ usado para o pagamento (obrigatório para compliance).
+     */
+    @Column(nullable = false)
+    private String taxId;
 
     /**
      * ID do product na abacate.

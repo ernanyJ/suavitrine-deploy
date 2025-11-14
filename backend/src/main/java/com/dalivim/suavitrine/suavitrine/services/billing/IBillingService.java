@@ -7,5 +7,5 @@ import com.dalivim.suavitrine.suavitrine.entities.billing.PayingPlan;
 import com.dalivim.suavitrine.suavitrine.entities.billing.PlanDuration;
 
 public interface IBillingService {
-    BillingResponse createBillingRequest(UUID storeId, PayingPlan payingPlan, PlanDuration planDuration);
+    BillingResponse createBillingRequest(UUID storeId, PayingPlan payingPlan, PlanDuration planDuration, String taxId);
 }

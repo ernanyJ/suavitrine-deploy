@@ -12,5 +12,6 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     Optional<Store> findByEmail(String email);
     boolean existsByEmail(String email);
     Optional<Store> findBySlug(String slug);
+    boolean existsBySlug(String slug);
 }
 

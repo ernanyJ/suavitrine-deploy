@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Include default Spring Boot logback configuration -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- Use Spring property placeholder -->
+    <springProperty scope="context" name="sentryDsn" source="sentry.dsn"/>
+    <springProperty scope="context" name="sentryEnvironment" source="spring.profiles.active"/>
+    <springProperty scope="context" name="sentryTraceSampleRate" source="sentry.traces-sample-rate"/>
+
+    <!-- Console appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Sentry appender - only if DSN is configured -->
+    <if condition='property("sentryDsn").contains("sentry.io")'>
+        <then>
+            <appender name="SENTRY_APPENDER" class="io.sentry.logback.SentryAppender">
+                <options>
+                    <dsn>${sentryDsn}</dsn>
+                    <environment>${sentryEnvironment:-development}</environment>
+                    <tracesSampleRate>${sentryTraceSampleRate:-1.0}</tracesSampleRate>
+                </options>
+                <!-- Optionally configure minimum log level for Sentry -->
+                <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                    <level>WARN</level>
+                </filter>
+            </appender>
+        </then>
+    </if>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <if condition='property("sentryDsn").contains("sentry.io")'>
+            <then>
+                <appender-ref ref="SENTRY_APPENDER"/>
+            </then>
+        </if>
+    </root>
+
+    <!-- Application loggers -->
+    <logger name="com.dalivim.suavitrine" level="DEBUG"/>
+    
+    <!-- Reduce noise from Spring -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.hibernate" level="INFO"/>
+</configuration>
+

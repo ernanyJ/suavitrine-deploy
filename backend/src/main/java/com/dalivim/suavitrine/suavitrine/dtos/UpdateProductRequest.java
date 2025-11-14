@@ -12,7 +12,7 @@ public record UpdateProductRequest(
         UUID categoryId,
         Integer displayOrder,
         Boolean available,
-        List<ProductImageRequest> images,
+        List<ProductGenericRequest> images,
         List<ProductVariationRequest> variations
 ) {
 }

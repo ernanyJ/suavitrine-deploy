@@ -35,6 +35,7 @@ public class Product {
     private Boolean showPromotionBadge;
 
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "product")
+    @OrderBy(value = "displayOrder")
     private List<ProductImage> images;
 
     @Column(length = 2000)

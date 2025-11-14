@@ -16,6 +16,9 @@ public class CategoryResponseMapperImpl implements CategoryResponseMapper {
 
     @Override
     public CategoryResponse toDto(Category category) {
+        if (category == null) {
+            return null;
+        }
         // Gera presigned URL a partir da key armazenada
         String imageUrl = category.getImageUrl() != null 
             ? imageService.getPresignedUrl(category.getImageUrl()) 

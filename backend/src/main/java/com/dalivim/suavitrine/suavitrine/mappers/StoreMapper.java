@@ -10,7 +10,6 @@ import org.mapstruct.*;
 public interface StoreMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "slug", ignore = true)
     @Mapping(target = "storeUsers", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -34,7 +33,6 @@ public interface StoreMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "slug", ignore = true)
     @Mapping(target = "storeUsers", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
