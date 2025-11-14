@@ -21,13 +21,25 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/suavitrine
+
+            echo "➡️ Parando container antigo"
+            docker compose down frontend || true
+
+            echo "➡️ Atualizando frontend via subtree"
             git fetch frontend
             git subtree pull --prefix=frontend frontend main --squash
+
+            echo "➡️ Limpando dist antigo"
+            sudo rm -rf frontend/dist
+
+            echo "➡️ Instalando dependências"
             cd frontend
-            rm -rf dist
-            chmod -R 755 dist
-            npm ci
+            npm ci --legacy-peer-deps
+
+            echo "➡️ Buildando frontend"
             npm run build
+
             cd ..
-            docker compose down frontend -v
+
+            echo "➡️ Subindo container Nginx com novo build"
             docker compose up -d frontend
