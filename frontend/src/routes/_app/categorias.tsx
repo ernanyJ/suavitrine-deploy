@@ -165,7 +165,7 @@ function CategoriasPage() {
   const { data: categories = [], isLoading, error } = useStoreCategories(selectedStoreId)
   
   // Delete category mutation
-  const deleteCategoryMutation = useDeleteCategory(selectedStoreId)
+  const deleteCategoryMutation = useDeleteCategory()
 
   const handleDeleteClick = (categoryId: string, categoryName: string) => {
     setCategoryToDelete({ id: categoryId, name: categoryName })

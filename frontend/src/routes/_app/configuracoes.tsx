@@ -9,16 +9,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useTheme } from '@/hooks/useTheme'
 import { useStore, useUpdateStore } from '@/lib/api/queries'
 import { useSelectedStore } from '@/contexts/store-context'
 import { storesApi } from '@/lib/api/stores'
-import { Moon, Sun, Settings as SettingsIcon, Store, Upload, X, Crown, Instagram } from 'lucide-react'
+import { Store, Upload, X, Crown, Instagram } from 'lucide-react'
 import type { UpdateStoreRequest, BannerImageRequest } from '@/lib/api/stores'
 
 // Helper function to convert File to base64

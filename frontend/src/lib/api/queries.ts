@@ -132,7 +132,7 @@ export function useUpdateProduct(storeId: string | null) {
  * Note: The optimistic update is handled in the component that uses this hook.
  * We don't invalidate queries here to avoid unnecessary GET requests.
  */
-export function useDeleteProduct(storeId: string | null) {
+export function useDeleteProduct() {
   return useMutation({
     mutationFn: (productId: string) => productsApi.deleteProduct(productId),
     // No onSuccess needed - optimistic update is handled in the component
@@ -294,7 +294,7 @@ export function useUpdateCategory(storeId: string | null) {
  * Note: The optimistic update is handled in the component that uses this hook.
  * We don't invalidate queries here to avoid unnecessary GET requests.
  */
-export function useDeleteCategory(storeId: string | null) {
+export function useDeleteCategory() {
   return useMutation({
     mutationFn: (categoryId: string) => categoriesApi.deleteCategory(categoryId),
     // No onSuccess needed - optimistic update is handled in the component
