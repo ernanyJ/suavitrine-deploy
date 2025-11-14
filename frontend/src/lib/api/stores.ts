@@ -1,4 +1,4 @@
-import { apiClient } from './axios-config';
+import { apiClient } from "./axios-config";
 
 export interface StoreUserResponse {
   id: string;
@@ -7,7 +7,7 @@ export interface StoreUserResponse {
   userId: string;
   userName: string;
   userEmail: string;
-  role: 'OWNER' | 'MANAGER' | 'EMPLOYEE';
+  role: "OWNER" | "MANAGER" | "EMPLOYEE";
   createdAt: string;
 }
 
@@ -40,10 +40,16 @@ export interface UpdateStoreRequest {
   logo?: BannerImageRequest;
 }
 
-export type ThemeMode = 'LIGHT' | 'DARK';
-export type RoundedLevel = 'NONE' | 'SMALL' | 'MEDIUM' | 'LARGE';
-export type BackgroundType = 'NONE' | 'STRIPED' | 'DOT' | 'GRID' | 'FLICKERING_GRID' | 'LIGHT_RAYS';
-export type PayingPlan = 'FREE' | 'BASIC' | 'PRO';
+export type ThemeMode = "LIGHT" | "DARK";
+export type RoundedLevel = "NONE" | "SMALL" | "MEDIUM" | "LARGE";
+export type BackgroundType =
+  | "NONE"
+  | "STRIPED"
+  | "DOT"
+  | "GRID"
+  | "FLICKERING_GRID"
+  | "LIGHT_RAYS";
+export type PayingPlan = "FREE" | "BASIC" | "PRO";
 
 export interface AddressResponse {
   id: string;
@@ -61,6 +67,7 @@ export interface StoreResponse {
   address?: AddressResponse;
   phoneNumber?: string;
   email?: string;
+  cnpj?: string;
   instagram?: string;
   facebook?: string;
   logoUrl?: string;
@@ -103,6 +110,9 @@ export interface UpdateThemeConfigRequest {
   bannerDesktop?: BannerImageRequest;
   bannerTablet?: BannerImageRequest;
   bannerMobile?: BannerImageRequest;
+  bannerDesktopDelete?: boolean;
+  bannerTabletDelete?: boolean;
+  bannerMobileDelete?: boolean;
   backgroundType?: BackgroundType;
   backgroundEnabled?: boolean;
   backgroundOpacity?: number;
@@ -136,7 +146,7 @@ export const storesApi = {
    */
   async createStore(data: CreateStoreRequest): Promise<StoreResponse> {
     const response = await apiClient.post<StoreResponse>(
-      '/api/v1/stores',
+      "/api/v1/stores",
       data
     );
     return response.data;
@@ -169,5 +179,17 @@ export const storesApi = {
     );
     return response.data;
   },
-};
 
+  /**
+   * Check if a slug is available
+   */
+  async checkSlugAvailability(slug: string): Promise<boolean> {
+    const response = await apiClient.get<boolean>(
+      `/api/v1/stores/check-slug-availability`,
+      {
+        params: { slug },
+      }
+    );
+    return response.data;
+  },
+};

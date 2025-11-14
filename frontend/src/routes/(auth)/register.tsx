@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { authApi, authStorage } from '@/lib/api/auth';
-import type { LoginRequest } from '@/lib/api/types';
+import type { RegisterRequest } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,11 +18,12 @@ import { Loader2, Eye, EyeOff } from 'lucide-react';
 import logoImage from '@/assets/logo.png';
 
 // Constants for validation limits
+const MAX_NAME_LENGTH = 100
 const MAX_EMAIL_LENGTH = 255
-const MAX_PASSWORD_LENGTH = 75
+const MAX_PASSWORD_LENGTH = 100
 const MIN_PASSWORD_LENGTH = 6
 
-export const Route = createFileRoute('/(auth)/login')({
+export const Route = createFileRoute('/(auth)/register')({
   component: RouteComponent,
 });
 
@@ -46,13 +47,13 @@ function RouteComponent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Entrar</CardTitle>
+            <CardTitle>Criar conta</CardTitle>
             <CardDescription>
-              Entre com suas credenciais para acessar sua conta
+              Preencha os dados para criar sua conta
             </CardDescription>
           </CardHeader>
 
-          <LoginForm onSuccess={() => navigate({ to: '/' })} />
+          <RegisterForm onSuccess={() => navigate({ to: '/' })} />
 
           <CardFooter className="flex flex-col gap-4">
             <div className="relative w-full">
@@ -69,8 +70,8 @@ function RouteComponent() {
               className="w-full"
               asChild
             >
-              <Link to="/register">
-                Não tem uma conta? Cadastre-se
+              <Link to="/login">
+                Já tem uma conta? Entre
               </Link>
             </Button>
           </CardFooter>
@@ -80,21 +81,23 @@ function RouteComponent() {
   );
 }
 
-function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+function RegisterForm({ onSuccess }: { onSuccess: () => void }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const loginMutation = useMutation({
-    mutationFn: (data: LoginRequest) => authApi.login(data),
+  const registerMutation = useMutation({
+    mutationFn: (data: RegisterRequest) => authApi.register(data),
     onSuccess: (data) => {
       authStorage.setToken(data.token);
       authStorage.setUser({ id: data.userId, name: data.name, email: data.email });
       onSuccess();
     },
     onError: (error: Error) => {
-      setError(error.message || 'Erro ao fazer login. Tente novamente.');
+      setError(error.message || 'Erro ao criar conta. Tente novamente.');
     },
   });
 
@@ -103,6 +106,16 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     setError('');
 
     // Client-side validation
+    if (!name.trim()) {
+      setError('Nome é obrigatório');
+      return;
+    }
+
+    if (name.length > MAX_NAME_LENGTH) {
+      setError(`Nome deve ter no máximo ${MAX_NAME_LENGTH} caracteres`);
+      return;
+    }
+
     if (!email.trim()) {
       setError('Email é obrigatório');
       return;
@@ -119,7 +132,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     }
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Senha deve ter no mínimo ${MIN_PASSWORD_LENGTH} caracteres`);
+      setError(`A senha deve ter no mínimo ${MIN_PASSWORD_LENGTH} caracteres`);
       return;
     }
 
@@ -128,55 +141,84 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
 
-    loginMutation.mutate({ email: email.trim(), password });
+    if (!confirmPassword.trim()) {
+      setError('Confirmação de senha é obrigatória');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem');
+      return;
+    }
+
+    registerMutation.mutate({ 
+      name: name.trim(), 
+      email: email.trim(), 
+      password 
+    });
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 mt-4">
         {error && (
           <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
             {error}
           </div>
         )}
 
-        <div className="space-y-2 mt-4">
-          <Label htmlFor="email">Email</Label>
+        <div className="space-y-2">
+          <Label htmlFor="name">Nome completo</Label>
           <Input
-            id="email"
+            id="name"
+            type="text"
+            placeholder="João Silva"
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, MAX_NAME_LENGTH))}
+            required
+            autoComplete="name"
+            disabled={registerMutation.isPending}
+            maxLength={MAX_NAME_LENGTH}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="register-email">Email</Label>
+          <Input
+            id="register-email"
             type="email"
             placeholder="seu@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value.slice(0, MAX_EMAIL_LENGTH))}
             required
             autoComplete="email"
-            disabled={loginMutation.isPending}
+            disabled={registerMutation.isPending}
             maxLength={MAX_EMAIL_LENGTH}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Senha</Label>
+          <Label htmlFor="register-password">Senha</Label>
           <div className="relative">
             <Input
-              id="password"
+              id="register-password"
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH))}
               required
-              autoComplete="current-password"
-              disabled={loginMutation.isPending}
+              autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
               maxLength={MAX_PASSWORD_LENGTH}
+              disabled={registerMutation.isPending}
               className="pr-10"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              disabled={loginMutation.isPending}
-              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              disabled={registerMutation.isPending}
+              aria-label={showPassword ? 'Ocultar senhas' : 'Mostrar senhas'}
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
@@ -187,22 +229,40 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="register-confirm-password">Confirmar senha</Label>
+          <div className="relative">
+            <Input
+              id="register-confirm-password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value.slice(0, MAX_PASSWORD_LENGTH))}
+              required
+              autoComplete="new-password"
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={MAX_PASSWORD_LENGTH}
+              disabled={registerMutation.isPending}
+              className="pr-10"
+            />
+          </div>
+        </div>
+
         <Button
           type="submit"
           className="w-full"
-          disabled={loginMutation.isPending}
+          disabled={registerMutation.isPending}
         >
-          {loginMutation.isPending ? (
+          {registerMutation.isPending ? (
             <>
               <Loader2 className="animate-spin" />
-              Entrando...
+              Criando conta...
             </>
           ) : (
-            'Entrar'
+            'Criar conta'
           )}
         </Button>
       </CardContent>
     </form>
   );
 }
-

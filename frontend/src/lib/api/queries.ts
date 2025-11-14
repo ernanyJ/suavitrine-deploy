@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi, type UpdateThemeConfigRequest, type UpdateStoreRequest } from './stores';
 import { productsApi, type CreateProductRequest, type UpdateProductRequest, type ProductResponse } from './products';
-import { categoriesApi, type CreateCategoryRequest, type UpdateCategoryRequest } from './categories';
+import { categoriesApi, type CreateCategoryRequest, type UpdateCategoryRequest, type CategoryResponse } from './categories';
 import { metricsApi } from './metrics';
 import type { CreateStoreRequest } from './stores';
 
@@ -86,9 +86,16 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: (data: CreateProductRequest) => productsApi.createProduct(data),
-    onSuccess: (_, variables) => {
-      // Invalidate products query for the store
-      queryClient.invalidateQueries({ queryKey: ['products', variables.storeId] });
+    onSuccess: (newProduct, variables) => {
+      // Directly update the cache with the new product instead of refetching
+      queryClient.setQueryData<ProductResponse[]>(
+        ['products', variables.storeId],
+        (old) => {
+          if (!old) return [newProduct];
+          // Add the new product to the beginning of the list
+          return [newProduct, ...old];
+        }
+      );
     },
   });
 }
@@ -102,10 +109,19 @@ export function useUpdateProduct(storeId: string | null) {
   return useMutation({
     mutationFn: ({ productId, data }: { productId: string; data: UpdateProductRequest }) =>
       productsApi.updateProduct(productId, data),
-    onSuccess: () => {
-      // Invalidate products query for the store
+    onSuccess: (updatedProduct) => {
+      // Directly update the cache with the updated product instead of refetching
       if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['products', storeId] });
+        queryClient.setQueryData<ProductResponse[]>(
+          ['products', storeId],
+          (old) => {
+            if (!old) return old;
+            // Replace the updated product in the list
+            return old.map((product) =>
+              product.id === updatedProduct.id ? updatedProduct : product
+            );
+          }
+        );
       }
     },
   });
@@ -113,18 +129,14 @@ export function useUpdateProduct(storeId: string | null) {
 
 /**
  * Hook to delete a product
+ * Note: The optimistic update is handled in the component that uses this hook.
+ * We don't invalidate queries here to avoid unnecessary GET requests.
  */
 export function useDeleteProduct(storeId: string | null) {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (productId: string) => productsApi.deleteProduct(productId),
-    onSuccess: () => {
-      // Invalidate products query for the store
-      if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['products', storeId] });
-      }
-    },
+    // No onSuccess needed - optimistic update is handled in the component
+    // This prevents unnecessary GET requests after successful deletion
   });
 }
 
@@ -234,10 +246,17 @@ export function useCreateCategory(storeId: string | null) {
 
   return useMutation({
     mutationFn: (data: CreateCategoryRequest) => categoriesApi.createCategory(data),
-    onSuccess: () => {
-      // Invalidate categories query
+    onSuccess: (newCategory) => {
+      // Directly update the cache with the new category instead of refetching
       if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['categories', storeId] });
+        queryClient.setQueryData<CategoryResponse[]>(
+          ['categories', storeId],
+          (old) => {
+            if (!old) return [newCategory];
+            // Add the new category to the end of the list
+            return [...old, newCategory];
+          }
+        );
       }
     },
   });
@@ -252,10 +271,19 @@ export function useUpdateCategory(storeId: string | null) {
   return useMutation({
     mutationFn: ({ categoryId, data }: { categoryId: string; data: UpdateCategoryRequest }) =>
       categoriesApi.updateCategory(categoryId, data),
-    onSuccess: () => {
-      // Invalidate categories query
+    onSuccess: (updatedCategory) => {
+      // Directly update the cache with the updated category instead of refetching
       if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['categories', storeId] });
+        queryClient.setQueryData<CategoryResponse[]>(
+          ['categories', storeId],
+          (old) => {
+            if (!old) return old;
+            // Replace the updated category in the list
+            return old.map((category) =>
+              category.id === updatedCategory.id ? updatedCategory : category
+            );
+          }
+        );
       }
     },
   });
@@ -263,18 +291,14 @@ export function useUpdateCategory(storeId: string | null) {
 
 /**
  * Hook to delete a category
+ * Note: The optimistic update is handled in the component that uses this hook.
+ * We don't invalidate queries here to avoid unnecessary GET requests.
  */
 export function useDeleteCategory(storeId: string | null) {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (categoryId: string) => categoriesApi.deleteCategory(categoryId),
-    onSuccess: () => {
-      // Invalidate categories query
-      if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['categories', storeId] });
-      }
-    },
+    // No onSuccess needed - optimistic update is handled in the component
+    // This prevents unnecessary GET requests after successful deletion
   });
 }
 

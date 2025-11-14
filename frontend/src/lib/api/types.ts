@@ -7,7 +7,6 @@ export interface LoginRequest {
 export interface RegisterRequest {
   name: string;
   email: string;
-  cpf: string;
   password: string;
 }
 

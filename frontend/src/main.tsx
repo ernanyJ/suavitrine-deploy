@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import * as Sentry from '@sentry/react'
 
 import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx'
 
@@ -9,6 +10,20 @@ import { routeTree } from './routeTree.gen.ts'
 
 import './styles.css'
 import reportWebVitals from './reportWebVitals.ts'
+
+Sentry.init({
+  dsn: "https://5ed43799c2b19fdda3569ed27082ec44@o4510333033054208.ingest.us.sentry.io/4510333035347968",
+  sendDefaultPii: true,
+  integrations: [
+    Sentry.replayIntegration(),
+    Sentry.browserTracingIntegration()
+  ],
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0 ,
+  tracesSampleRate: 1.0,
+  // Set `tracePropagationTargets` to control for which URLs distributed tracing should be enabled
+  tracePropagationTargets: ["localhost", /^https:\/\/api\.suavitrine\.tech/],
+});
 
 // Create a new router instance
 

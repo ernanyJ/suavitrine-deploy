@@ -15,15 +15,15 @@ export function PlanBadge({ plan, className }: PlanBadgeProps) {
   const planConfig = {
     FREE: {
       label: 'FREE',
-      className: 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700',
+      className: 'bg-muted text-muted-foreground border-border',
     },
     BASIC: {
       label: 'BASIC',
-      className: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700',
+      className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 dark:border-blue-500/30',
     },
     PRO: {
       label: 'PRO',
-      className: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700',
+      className: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 dark:border-purple-500/30',
     },
   }
 
@@ -33,7 +33,7 @@ export function PlanBadge({ plan, className }: PlanBadgeProps) {
     <Badge
       variant="outline"
       className={cn(
-        'border font-semibold',
+        'font-semibold',
         config.className,
         className
       )}

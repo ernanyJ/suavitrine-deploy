@@ -7,10 +7,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Rocket, Sparkles, Loader2, ExternalLink, Copy, AlertCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { CheckCircle, Rocket, Sparkles, Loader2, ExternalLink, Copy, AlertCircle, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { billingApi, type PayingPlan, type PlanDuration, type BillingResponse } from '@/lib/api/billing'
-import { storesApi, type PayingPlan as StorePayingPlan } from '@/lib/api/stores'
+import { storesApi, type PayingPlan as StorePayingPlan, type StoreResponse } from '@/lib/api/stores'
 import { toast } from 'sonner'
 
 interface UpgradeDialogProps {
@@ -27,9 +29,11 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
   const [selectedDuration, setSelectedDuration] = useState<PlanDuration>('MONTHLY')
   const [isCreating, setIsCreating] = useState(false)
   const [billingResponse, setBillingResponse] = useState<BillingResponse | null>(null)
-  const [step, setStep] = useState<'select' | 'payment'>('select')
+  const [step, setStep] = useState<'select' | 'taxId' | 'payment'>('select')
   const [activePlan, setActivePlan] = useState<StorePayingPlan | null>(null)
   const [isLoadingPlan, setIsLoadingPlan] = useState(false)
+  const [store, setStore] = useState<StoreResponse | null>(null)
+  const [cpf, setCpf] = useState('')
 
   // Buscar plano ativo quando o dialog abre e storeId muda
   useEffect(() => {
@@ -37,8 +41,9 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
       setIsLoadingPlan(true)
       storesApi
         .getStore(storeId)
-        .then((store) => {
-          setActivePlan(store.activePlan || null)
+        .then((storeData) => {
+          setStore(storeData)
+          setActivePlan(storeData.activePlan || null)
         })
         .catch((error) => {
           console.error('Erro ao buscar informações da loja:', error)
@@ -50,6 +55,8 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
     } else if (!open) {
       // Reset quando fecha
       setActivePlan(null)
+      setStore(null)
+      setCpf('')
     }
   }, [open, storeId])
 
@@ -89,7 +96,18 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
     return monthlyTotal - yearlyPrice
   }
 
-  const handleCreateBilling = async () => {
+  const handleContinueToPayment = () => {
+    // Verificar se a loja tem CNPJ
+    if (store?.cnpj) {
+      // Se tem CNPJ, vai direto criar o billing
+      handleCreateBilling(store.cnpj)
+    } else {
+      // Se não tem CNPJ, precisa pedir CPF
+      setStep('taxId')
+    }
+  }
+
+  const handleCreateBilling = async (taxId: string) => {
     if (!storeId) {
       toast.error('Nenhuma loja selecionada')
       return
@@ -101,11 +119,18 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
       return
     }
 
+    // Validar CPF se necessário
+    if (!taxId || taxId.trim() === '') {
+      toast.error('CPF é obrigatório para continuar')
+      return
+    }
+
     setIsCreating(true)
     try {
       const response = await billingApi.createBillingRequest(storeId, {
         payingPlan: selectedPlan,
         planDuration: selectedDuration,
+        taxId: taxId.replace(/\D/g, ''), // Remove caracteres não numéricos
       })
       setBillingResponse(response)
       setStep('payment')
@@ -116,6 +141,22 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const formatCpf = (value: string) => {
+    // Remove tudo que não é dígito
+    const numbers = value.replace(/\D/g, '')
+    
+    // Aplica a máscara
+    if (numbers.length <= 3) return numbers
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`
+    if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`
+  }
+
+  const handleCpfChange = (value: string) => {
+    const formatted = formatCpf(value)
+    setCpf(formatted)
   }
 
   const handleCopyLink = () => {
@@ -139,6 +180,7 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
       setBillingResponse(null)
       setSelectedPlan('BASIC')
       setSelectedDuration('MONTHLY')
+      setCpf('')
     }, 200)
   }
 
@@ -161,13 +203,13 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
                 <span className="text-sm text-muted-foreground">Verificando plano ativo...</span>
               </div>
             ) : activePlan && activePlan !== 'FREE' ? (
-              <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg mb-6">
-                <AlertCircle className="size-5 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-3 p-4 bg-warning/10 dark:bg-warning/20 border border-warning/30 dark:border-warning/30 rounded-lg mb-6 backdrop-blur-sm">
+                <AlertCircle className="size-5 text-warning dark:text-warning/90 mt-0.5 shrink-0" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-1">
+                  <h4 className="font-semibold text-foreground mb-1">
                     Plano ativo detectado
                   </h4>
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <p className="text-sm text-muted-foreground">
                     Você já possui um plano <strong>{activePlan}</strong> ativo. Não é possível criar uma nova solicitação de pagamento enquanto houver um plano ativo.
                   </p>
                 </div>
@@ -327,7 +369,7 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
               </Button>
               <Button
                 className="flex-1"
-                onClick={handleCreateBilling}
+                onClick={handleContinueToPayment}
                 disabled={isCreating || !storeId || isLoadingPlan || (!!activePlan && activePlan !== 'FREE')}
               >
                 {isCreating ? (
@@ -341,6 +383,73 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
                   'Continuar para pagamento'
                 )}
               </Button>
+            </div>
+          </>
+        ) : step === 'taxId' ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Informação de CPF</DialogTitle>
+              <DialogDescription>
+                Precisamos do seu CPF para processar o pagamento
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Compliance Message */}
+              <div className="flex items-start gap-3 p-4 bg-warning/10 dark:bg-warning/20 border border-warning/30 dark:border-warning/30 rounded-lg backdrop-blur-sm">
+                <Info className="size-5 text-warning dark:text-warning/90 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-foreground mb-1">
+                    Por que precisamos do seu CPF?
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Como sua loja não possui CNPJ cadastrado, precisamos do seu CPF para cumprir as exigências legais de identificação do pagador. Esta informação é obrigatória para processar transações financeiras e garantir a segurança do pagamento.
+                  </p>
+                </div>
+              </div>
+
+              {/* CPF Input */}
+              <div className="space-y-2">
+                <Label htmlFor="cpf">CPF *</Label>
+                <Input
+                  id="cpf"
+                  type="text"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => handleCpfChange(e.target.value)}
+                  maxLength={14}
+                  disabled={isCreating}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Digite apenas os números, a formatação será aplicada automaticamente
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setStep('select')}
+                  disabled={isCreating}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => handleCreateBilling(cpf)}
+                  disabled={isCreating || !cpf || cpf.replace(/\D/g, '').length !== 11}
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    'Continuar para pagamento'
+                  )}
+                </Button>
+              </div>
             </div>
           </>
         ) : (
@@ -391,9 +500,9 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
                       </span>
                     </div>
                     {selectedDuration === 'YEARLY' && (
-                      <div className="flex justify-between text-sm bg-green-50 dark:bg-green-950/30 rounded-lg p-2">
-                        <span className="text-green-700 dark:text-green-300">Equivale a:</span>
-                        <span className="font-medium text-green-700 dark:text-green-300">
+                      <div className="flex justify-between text-sm bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 dark:border-emerald-400/30 rounded-lg p-2 backdrop-blur-sm">
+                        <span className="text-foreground font-medium">Equivale a:</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                           {formatPrice(Math.round(billingResponse.price / 12))}/mês
                         </span>
                       </div>
@@ -428,9 +537,9 @@ export function UpgradeDialog({ open, onOpenChange, storeId }: UpgradeDialogProp
                   </Button>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    <strong>Próximos passos:</strong> Clique no botão acima para abrir a página de pagamento em uma nova aba. Após concluir o pagamento, seu plano será ativado automaticamente.
+                <div className="bg-warning/10 dark:bg-warning/20 border border-warning/30 dark:border-warning/30 rounded-lg p-4 backdrop-blur-sm">
+                  <p className="text-sm text-foreground">
+                    <strong className="text-foreground">Próximos passos:</strong> Clique no botão acima para abrir a página de pagamento em uma nova aba. Após concluir o pagamento, seu plano será ativado automaticamente.
                   </p>
                 </div>
 

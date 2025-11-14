@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useLocation, useNavigate } from '@tanstack/react-router'
 import { useState, useMemo, useEffect } from 'react'
 import {
   Card,
@@ -63,6 +63,8 @@ import { useSelectedStore } from '@/contexts/store-context'
 import { CreateProductDialog } from '@/components/create-product-dialog'
 import { EditProductDialog } from '@/components/edit-product-dialog'
 import type { ProductResponse } from '@/lib/api/products'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 
 export const Route = createFileRoute('/_app/produtos')({
   component: ProdutosPage,
@@ -75,10 +77,30 @@ function ProdutosPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   
   // Load view mode preference from localStorage
+  // Force grid mode on mobile devices
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
+    // Check if we're on mobile
+    const isMobile = window.innerWidth < 768
+    if (isMobile) return 'grid'
+    
     const saved = localStorage.getItem('productsViewMode')
     return (saved === 'grid' || saved === 'table') ? saved : 'grid'
   })
+  
+  // Update view mode to grid when window is resized to mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && viewMode !== 'grid') {
+        setViewModeState('grid')
+      }
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [viewMode])
+  
+  const location = useLocation()
+  const navigate = useNavigate()
   
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -102,12 +124,33 @@ function ProdutosPage() {
     localStorage.setItem('productsViewMode', viewMode)
   }, [viewMode])
 
+  // Check hash on mount and when location changes
+  useEffect(() => {
+    const hash = location.hash
+    if (hash === 'criar' && !dialogOpen) {
+      setDialogOpen(true)
+    }
+  }, [location.hash, dialogOpen])
+
+  // Update hash when dialog opens/closes
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (open) {
+      navigate({ hash: 'criar', replace: true })
+    } else {
+      navigate({ hash: '', replace: true })
+    }
+  }
+
   const setViewMode = (mode: ViewMode) => {
     setViewModeState(mode)
   }
   
   // Get selected store ID from context
   const { selectedStoreId } = useSelectedStore()
+  
+  // Query client for optimistic updates
+  const queryClient = useQueryClient()
   
   // Fetch products for the selected store
   const { data: products = [], isLoading, error } = useStoreProducts(selectedStoreId)
@@ -129,18 +172,47 @@ function ProdutosPage() {
   const handleConfirmDelete = async () => {
     if (!productToDelete && selectedProducts.size === 0) return
 
+    // If multiple products are selected, delete them all
+    if (selectedProducts.size > 0) {
+      await handleDeleteMultiple()
+      return
+    }
+    
+    // Otherwise, delete the single product with optimistic update
+    if (!productToDelete) return
+
+    const productId = productToDelete.id
+    
+    // Close dialog immediately
+    setDeleteDialogOpen(false)
+    setProductToDelete(null)
+
+    // Get current products from cache
+    const queryKey = ['products', selectedStoreId]
+    const previousProducts = queryClient.getQueryData<ProductResponse[]>(queryKey)
+
     try {
-      // If multiple products are selected, delete them all
-      if (selectedProducts.size > 0) {
-        await handleDeleteMultiple()
-        setDeleteDialogOpen(false)
-      } else if (productToDelete) {
-        // Otherwise, delete the single product
-        await deleteProductMutation.mutateAsync(productToDelete.id)
-        setDeleteDialogOpen(false)
-        setProductToDelete(null)
-      }
+      // Optimistically remove the product from UI
+      queryClient.setQueryData<ProductResponse[]>(queryKey, (old) => {
+        return old?.filter(p => p.id !== productId) ?? []
+      })
+
+      // Execute the actual deletion
+      await deleteProductMutation.mutateAsync(productId)
+      
+      // Show success toast
+      toast.success('Produto excluído com sucesso')
     } catch (error) {
+      // Revert the optimistic update on error
+      if (previousProducts) {
+        queryClient.setQueryData(queryKey, previousProducts)
+      }
+      
+      // Show error toast
+      toast.error('Erro ao excluir produto', {
+        description: 'Não foi possível excluir o produto. Tente novamente.',
+      })
+      
       console.error('Error deleting product:', error)
     }
   }
@@ -213,16 +285,42 @@ function ProdutosPage() {
   const handleDeleteMultiple = async () => {
     if (selectedProducts.size === 0) return
 
+    const productIds = Array.from(selectedProducts)
+    
+    // Close dialog immediately
+    setDeleteDialogOpen(false)
+    setSelectedProducts(new Set())
+
+    // Get current products from cache
+    const queryKey = ['products', selectedStoreId]
+    const previousProducts = queryClient.getQueryData<ProductResponse[]>(queryKey)
+
     try {
+      // Optimistically remove the products from UI
+      queryClient.setQueryData<ProductResponse[]>(queryKey, (old) => {
+        return old?.filter(p => !productIds.includes(p.id)) ?? []
+      })
+
       // Delete all selected products
       await Promise.all(
-        Array.from(selectedProducts).map(productId => 
+        productIds.map(productId => 
           deleteProductMutation.mutateAsync(productId)
         )
       )
-      setSelectedProducts(new Set())
-      setDeleteDialogOpen(false)
+      
+      // Show success toast
+      toast.success(`${productIds.length} ${productIds.length === 1 ? 'produto excluído' : 'produtos excluídos'} com sucesso`)
     } catch (error) {
+      // Revert the optimistic update on error
+      if (previousProducts) {
+        queryClient.setQueryData(queryKey, previousProducts)
+      }
+      
+      // Show error toast
+      toast.error('Erro ao excluir produtos', {
+        description: 'Não foi possível excluir os produtos. Tente novamente.',
+      })
+      
       console.error('Error deleting products:', error)
     }
   }
@@ -413,51 +511,60 @@ function ProdutosPage() {
   })
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-4 p-4 pt-16 md:pt-6 md:gap-6 md:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Produtos</h1>
+          <p className="text-sm text-muted-foreground md:text-base">
             Gerencie o catálogo de produtos da sua loja
           </p>
         </div>
         {selectedProducts.size === 0 ? (
-          <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+          <Button 
+            className="gap-2 w-full md:w-auto open-product-btn" 
+            onClick={() => handleDialogOpenChange(true)}
+          >
             <Plus className="size-4" />
-            Adicionar Produto
+            <span className="hidden md:inline">Adicionar Produto</span>
+            <span className="md:hidden">Adicionar</span>
           </Button>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <span className="text-sm text-muted-foreground text-center md:text-left">
               {selectedProducts.size} {selectedProducts.size === 1 ? 'item selecionado' : 'itens selecionados'}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClearSelection}
-            >
-              <X className="size-4" />
-              Limpar
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                setProductToDelete({ id: '', title: `${selectedProducts.size} produtos` })
-                setDeleteDialogOpen(true)
-              }}
-            >
-              <Trash2 className="size-4" />
-              Excluir ({selectedProducts.size})
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearSelection}
+                className="flex-1 md:flex-initial"
+              >
+                <X className="size-4" />
+                <span className="hidden md:inline">Limpar</span>
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setProductToDelete({ id: '', title: `${selectedProducts.size} produtos` })
+                  setDeleteDialogOpen(true)
+                }}
+                className="flex-1 md:flex-initial"
+              >
+                <Trash2 className="size-4" />
+                <span className="hidden md:inline">Excluir ({selectedProducts.size})</span>
+                <span className="md:hidden">Excluir</span>
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
       {/* Loading State - Skeleton Grid */}
       {isLoading && viewMode === 'grid' && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Card key={index} className="overflow-hidden">
               {/* Skeleton Image */}
@@ -520,12 +627,12 @@ function ProdutosPage() {
       {/* Error State */}
       {error && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Package className="size-12 text-destructive mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
+          <CardContent className="flex flex-col items-center justify-center py-12 md:py-16 px-4">
+            <Package className="size-10 text-destructive mb-4 md:size-12" />
+            <h3 className="text-base font-semibold mb-2 text-center md:text-lg">
               Erro ao carregar produtos
             </h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs text-muted-foreground mb-4 text-center md:text-sm max-w-md">
               {error instanceof Error ? error.message : 'Erro desconhecido'}
             </p>
           </CardContent>
@@ -536,8 +643,8 @@ function ProdutosPage() {
       {!isLoading && !error && (
         <div className="space-y-4">
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
+            <CardContent className="pt-4 md:pt-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -548,23 +655,28 @@ function ProdutosPage() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <ButtonGroup>
-                    <Button
-                      variant={viewMode === 'grid' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setViewMode('grid')}
-                    >
-                      <Grid3x3 className="size-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'table' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setViewMode('table')}
-                    >
-                      <TableIcon className="size-4" />
-                    </Button>
-                  </ButtonGroup>
-                  <Button variant="outline">Filtros</Button>
+                  {/* View Mode Toggle - Hidden on mobile */}
+                  <div className="hidden md:flex items-center gap-2">
+                    <ButtonGroup>
+                      <Button
+                        variant={viewMode === 'grid' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('grid')}
+                      >
+                        <Grid3x3 className="size-4" />
+                      </Button>
+                      <Button
+                        variant={viewMode === 'table' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('table')}
+                      >
+                        <TableIcon className="size-4" />
+                      </Button>
+                    </ButtonGroup>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full md:w-auto">
+                    Filtros
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -573,19 +685,19 @@ function ProdutosPage() {
           {/* Category Filter */}
           {categories.length > 0 && (
             <Card>
-              <CardContent className="py-4">
-                <div className="flex items-center gap-3 flex-wrap">
+              <CardContent className="py-3 md:py-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:flex-wrap">
                   {selectedCategoryId && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleClearCategory}
-                      className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-background"
+                      className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground w-full md:w-auto"
                     >
                       Limpar filtro
                     </Button>
                   )}
-                  <ButtonGroup>
+                  <div className="flex flex-wrap gap-2">
                     {categories.map((category) => (
                       <Button
                         key={category.id}
@@ -601,7 +713,7 @@ function ProdutosPage() {
                         {category.name}
                       </Button>
                     ))}
-                  </ButtonGroup>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -611,28 +723,31 @@ function ProdutosPage() {
 
       {/* Products Grid or Table View */}
       {!isLoading && !error && viewMode === 'grid' && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
           {filteredProducts.map((product) => {
             const imageUrl = product.images?.[0]?.url
             return (
             <Card 
               key={product.id} 
-              className={`overflow-hidden transition-all ${
+              className={`relative overflow-hidden transition-all ${
                 selectedProducts.has(product.id) ? 'ring-2 ring-primary' : ''
               }`}
             >
               {/* Selection Checkbox */}
               <div className="absolute left-2 top-2 z-10">
                 <button
-                  onClick={() => handleSelectProduct(product.id)}
-                  className="flex items-center justify-center rounded-md bg-background/80 backdrop-blur-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleSelectProduct(product.id)
+                  }}
+                  className="flex items-center justify-center rounded-md bg-background/90 backdrop-blur-sm shadow-sm hover:bg-background transition-colors"
                 >
                   {selectedProducts.has(product.id) ? (
-                    <div className="flex h-6 w-6 items-center justify-center rounded border bg-primary text-primary-foreground">
+                    <div className="flex h-6 w-6 items-center justify-center rounded border-2 border-primary bg-primary text-primary-foreground">
                       <Check className="size-4" />
                     </div>
                   ) : (
-                    <div className="flex h-6 w-6 items-center justify-center rounded border bg-background/80 backdrop-blur-sm">
+                    <div className="flex h-6 w-6 items-center justify-center rounded border-2 border-background bg-background/90 backdrop-blur-sm">
                     </div>
                   )}
                 </button>
@@ -644,7 +759,7 @@ function ProdutosPage() {
                   <img
                     src={imageUrl}
                     alt={product.title}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover p-2 rounded-md"
                     onError={() => handleImageError(product.id)}
                     loading="lazy"
                   />
@@ -656,7 +771,12 @@ function ProdutosPage() {
                 <div className="absolute right-2 top-2 z-10">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="size-8">
+                      <Button 
+                        variant="secondary" 
+                        size="icon" 
+                        className="size-8 bg-background/90 backdrop-blur-sm shadow-sm hover:bg-background"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreVertical className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -686,24 +806,24 @@ function ProdutosPage() {
                 </div>
               </div>
 
-              <CardHeader className="pb-3">
+              <CardHeader className="p-4 pb-3 md:p-6 md:pb-3">
                 <div className="space-y-1">
-                  <CardTitle className="text-lg line-clamp-2">
+                  <CardTitle className="text-base line-clamp-2 md:text-lg">
                     {product.title}
                   </CardTitle>
-                  <CardDescription className="text-sm">
+                  <CardDescription className="text-xs md:text-sm">
                     {product.category?.name || 'Sem categoria'}
                   </CardDescription>
                 </div>
               </CardHeader>
 
-              <CardContent>
+              <CardContent className="p-4 md:p-6">
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <span className="text-xl font-bold md:text-2xl">
                       R$ {formatPrice(product.price)}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col  gap-2 md:flex-row md:items-center md:justify-between">
                       <Switch
                         checked={product.available ?? true}
                         onCheckedChange={() => {
@@ -711,14 +831,18 @@ function ProdutosPage() {
                         }}
                         disabled={toggleAvailabilityMutation.isPending}
                         onClick={(e) => e.stopPropagation()}
+                        className="flex-shrink-0"
                       />
-                      <Badge variant={product.available ? "default" : "secondary"}>
+                      <Badge 
+                        variant={product.available ? "default" : "secondary"} 
+                        className="text-xs"
+                      >
                         {product.available ? "Disponível" : "Indisponível"}
                       </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Package className="size-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2 text-xs md:text-sm">
+                    <Package className="size-3 md:size-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-muted-foreground">
                       Variações:{' '}
                       <span className="font-medium">
@@ -778,21 +902,22 @@ function ProdutosPage() {
                       colSpan={columns.length}
                       className="h-64 text-center"
                     >
-                      <div className="flex flex-col items-center justify-center py-8">
-                        <Package className="size-12 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">
+                      <div className="flex flex-col items-center justify-center py-8 px-4">
+                        <Package className="size-10 text-muted-foreground mb-4 md:size-12" />
+                        <h3 className="text-base font-semibold mb-2 md:text-lg">
                           {searchQuery 
                             ? 'Nenhum produto encontrado' 
                             : 'Nenhum produto cadastrado'}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
+                        <p className="text-xs text-muted-foreground mb-4 md:text-sm max-w-md">
                           {searchQuery 
                             ? 'Tente ajustar sua busca ou adicione novos produtos'
                             : 'Comece adicionando seus primeiros produtos à loja'}
                         </p>
-                        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+                        <Button className="gap-2 w-full md:w-auto" onClick={() => handleDialogOpenChange(true)}>
                           <Plus className="size-4" />
-                          Adicionar Produto
+                          <span className="hidden md:inline">Adicionar Produto</span>
+                          <span className="md:hidden">Adicionar</span>
                         </Button>
                       </div>
                     </TableCell>
@@ -807,21 +932,22 @@ function ProdutosPage() {
       {/* Empty State - Only show in grid mode */}
       {!isLoading && !error && filteredProducts.length === 0 && viewMode === 'grid' && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Package className="size-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
+          <CardContent className="flex flex-col items-center justify-center py-12 md:py-16 px-4">
+            <Package className="size-10 text-muted-foreground mb-4 md:size-12" />
+            <h3 className="text-base font-semibold mb-2 text-center md:text-lg">
               {searchQuery 
                 ? 'Nenhum produto encontrado' 
                 : 'Nenhum produto cadastrado'}
             </h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs text-muted-foreground mb-4 text-center md:text-sm max-w-md">
               {searchQuery 
                 ? 'Tente ajustar sua busca ou adicione novos produtos'
                 : 'Comece adicionando seus primeiros produtos à loja'}
             </p>
-            <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+            <Button className="gap-2 w-full md:w-auto" onClick={() => handleDialogOpenChange(true)}>
               <Plus className="size-4" />
-              Adicionar Produto
+              <span className="hidden md:inline">Adicionar Produto</span>
+              <span className="md:hidden">Adicionar</span>
             </Button>
           </CardContent>
         </Card>
@@ -831,7 +957,7 @@ function ProdutosPage() {
       {selectedStoreId && (
         <CreateProductDialog
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          onOpenChange={handleDialogOpenChange}
           storeId={selectedStoreId}
         />
       )}

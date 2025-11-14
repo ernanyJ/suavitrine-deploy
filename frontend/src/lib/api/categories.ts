@@ -27,6 +27,7 @@ export interface UpdateCategoryRequest {
   name?: string;
   description?: string;
   image?: CategoryImageRequest;
+  imageDelete?: boolean;
 }
 
 export const categoriesApi = {

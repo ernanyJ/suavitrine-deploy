@@ -48,6 +48,11 @@ export interface ProductImageRequest {
   displayOrder?: number;
 }
 
+export interface ProductGenericRequest {
+  existingImage?: string | null;
+  newImage?: ProductImageRequest | null;
+}
+
 export interface CreateProductRequest {
   title: string;
   price: number;
@@ -55,7 +60,7 @@ export interface CreateProductRequest {
   showPromotionBadge?: boolean;
   description?: string;
   storeId: string;
-  categoryId: string;
+  categoryId?: string;
   available?: boolean;
   images?: ProductImageRequest[];
   variations?: ProductVariationRequest[];
@@ -69,7 +74,7 @@ export interface UpdateProductRequest {
   description?: string;
   categoryId?: string;
   available?: boolean;
-  images?: ProductImageRequest[];
+  images?: ProductGenericRequest[];
   variations?: ProductVariationRequest[];
 }
 

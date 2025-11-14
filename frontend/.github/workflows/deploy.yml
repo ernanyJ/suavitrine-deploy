@@ -23,5 +23,11 @@ jobs:
             cd ~/suavitrine
             git fetch frontend
             git subtree pull --prefix=frontend frontend main --squash
-            docker compose build frontend
+            cd frontend
+            rm -rf dist
+            chmod -R 755 dist
+            npm ci
+            npm run build
+            cd ..
+            docker compose down frontend -v
             docker compose up -d frontend

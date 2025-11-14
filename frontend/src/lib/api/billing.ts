@@ -6,6 +6,7 @@ export type PlanDuration = 'MONTHLY' | 'YEARLY';
 export interface CreateBillingRequest {
   payingPlan: PayingPlan;
   planDuration: PlanDuration;
+  taxId: string;
 }
 
 export interface BillingResponse {

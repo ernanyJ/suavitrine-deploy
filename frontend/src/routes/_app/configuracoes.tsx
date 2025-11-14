@@ -17,7 +17,8 @@ import { Badge } from '@/components/ui/badge'
 import { useTheme } from '@/hooks/useTheme'
 import { useStore, useUpdateStore } from '@/lib/api/queries'
 import { useSelectedStore } from '@/contexts/store-context'
-import { Moon, Sun, Settings as SettingsIcon, Store, Upload, X, Crown } from 'lucide-react'
+import { storesApi } from '@/lib/api/stores'
+import { Moon, Sun, Settings as SettingsIcon, Store, Upload, X, Crown, Instagram } from 'lucide-react'
 import type { UpdateStoreRequest, BannerImageRequest } from '@/lib/api/stores'
 
 // Helper function to convert File to base64
@@ -35,13 +36,63 @@ const getContentType = (file: File): string => {
   return file.type || 'image/jpeg'
 }
 
+// Helper function to format phone number with mask
+const formatPhoneNumber = (value: string): string => {
+  // Remove all non-numeric characters
+  const numbers = value.replace(/\D/g, '')
+  
+  // Apply mask based on length
+  if (numbers.length <= 2) {
+    return numbers.length > 0 ? `(${numbers}` : numbers
+  } else if (numbers.length <= 7) {
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`
+  } else if (numbers.length <= 10) {
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`
+  } else {
+    // For 11 digits (cell phone)
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`
+  }
+}
+
+// Helper function to format zip code (CEP) with mask
+const formatZipCode = (value: string): string => {
+  // Remove all non-numeric characters
+  const numbers = value.replace(/\D/g, '')
+  
+  // Limit to 8 digits (Brazilian CEP format)
+  const limitedNumbers = numbers.slice(0, 8)
+  
+  // Apply mask: 00000-000
+  if (limitedNumbers.length <= 5) {
+    return limitedNumbers
+  } else {
+    return `${limitedNumbers.slice(0, 5)}-${limitedNumbers.slice(5, 8)}`
+  }
+}
+
+// Helper function to extract Facebook slug from URL
+const extractFacebookSlug = (value: string): string | null => {
+  if (!value.trim()) return null
+  
+  // Remove leading/trailing whitespace
+  const trimmed = value.trim()
+  
+  // Check if it's a URL pattern (contains facebook.com)
+  const facebookUrlPattern = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?facebook\.com\/([^\/\s?]+)/i
+  const match = trimmed.match(facebookUrlPattern)
+  
+  if (match && match[1]) {
+    return match[1]
+  }
+  
+  return null
+}
+
 export const Route = createFileRoute('/_app/configuracoes')({
   component: ConfiguracoesPage,
 })
 
 function ConfiguracoesPage() {
-  const { theme, toggleTheme } = useTheme()
-
   // Get selected store ID from context
   const { selectedStoreId } = useSelectedStore()
 
@@ -51,6 +102,7 @@ function ConfiguracoesPage() {
 
   // Form state
   const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
   const [street, setStreet] = useState('')
   const [city, setCity] = useState('')
@@ -66,22 +118,92 @@ function ConfiguracoesPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
+  // Slug availability state
+  const [slugError, setSlugError] = useState('')
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false)
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
+
   // Initialize form from store data
   useEffect(() => {
     if (store) {
       setName(store.name || '')
+      setSlug(store.slug || '')
       setDescription(store.description || '')
       setStreet(store.address?.street || '')
       setCity(store.address?.city || '')
       setState(store.address?.state || '')
-      setZipCode(store.address?.zipCode || '')
-      setPhoneNumber(store.phoneNumber || '')
+      setZipCode(store.address?.zipCode ? formatZipCode(store.address.zipCode) : '')
+      setPhoneNumber(store.phoneNumber ? formatPhoneNumber(store.phoneNumber) : '')
       setEmail(store.email || '')
-      setInstagram(store.instagram || '')
+      setInstagram(store.instagram ? store.instagram.replace(/@/g, '') : '')
       setFacebook(store.facebook || '')
       setLogoUrl(store.logoUrl || null)
+      // Reset slug availability when loading store data
+      setSlugAvailable(null)
+      setSlugError('')
     }
   }, [store])
+
+  // Debounce slug availability check
+  useEffect(() => {
+    const currentSlug = slug?.trim()
+    const originalSlug = store?.slug?.trim()
+    
+    // Reset if slug is empty
+    if (!currentSlug) {
+      setSlugAvailable(null)
+      setSlugError('')
+      setIsCheckingSlug(false)
+      return
+    }
+
+    // Don't check if slug hasn't changed from original
+    if (currentSlug === originalSlug) {
+      setSlugAvailable(true)
+      setSlugError('')
+      setIsCheckingSlug(false)
+      return
+    }
+
+    // Don't check if slug is too short
+    if (currentSlug.length < 3) {
+      setSlugAvailable(null)
+      setSlugError('')
+      setIsCheckingSlug(false)
+      return
+    }
+
+    // Clear any previous error
+    setSlugError('')
+    setIsCheckingSlug(false)
+
+    // Debounce: wait 500ms after user stops typing
+    const timeoutId = setTimeout(async () => {
+      // Set checking state only when we're about to make the request
+      setIsCheckingSlug(true)
+      
+      try {
+        const available = await storesApi.checkSlugAvailability(currentSlug)
+        setSlugAvailable(available)
+        if (!available) {
+          setSlugError('Este slug não está disponível')
+        } else {
+          setSlugError('')
+        }
+      } catch (err) {
+        console.error('Erro ao verificar disponibilidade do slug:', err)
+        setSlugAvailable(null)
+        setSlugError('Erro ao verificar disponibilidade do slug')
+      } finally {
+        setIsCheckingSlug(false)
+      }
+    }, 500)
+
+    return () => {
+      clearTimeout(timeoutId)
+      // Don't reset isCheckingSlug here to avoid flickering
+    }
+  }, [slug, store?.slug])
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -143,6 +265,21 @@ function ConfiguracoesPage() {
       return
     }
 
+    if (!slug.trim()) {
+      toast.error('O slug da loja é obrigatório')
+      return
+    }
+
+    if (slugAvailable === false) {
+      toast.error('Por favor, escolha um slug disponível')
+      return
+    }
+
+    if (isCheckingSlug) {
+      toast.error('Aguarde a verificação do slug')
+      return
+    }
+
     try {
       let logoData: BannerImageRequest | undefined = undefined
 
@@ -158,14 +295,15 @@ function ConfiguracoesPage() {
 
       const data: UpdateStoreRequest = {
         name: name || undefined,
+        slug: slug || undefined,
         description: description || undefined,
         street: street || undefined,
         city: city || undefined,
         state: state || undefined,
-        zipCode: zipCode || undefined,
-        phoneNumber: phoneNumber || undefined,
+        zipCode: zipCode ? zipCode.replace(/\D/g, '') : undefined,
+        phoneNumber: phoneNumber ? phoneNumber.replace(/\D/g, '') : undefined,
         email: email || undefined,
-        instagram: instagram || undefined,
+        instagram: instagram.trim() ? `@${instagram.trim().replace('@', '')}` : undefined,
         facebook: facebook || undefined,
         logo: logoData,
       }
@@ -215,7 +353,7 @@ function ConfiguracoesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mt-4">
             <Badge variant={getPlanBadgeVariant(store?.activePlan)}>
               {getPlanLabel(store?.activePlan)}
             </Badge>
@@ -241,7 +379,7 @@ function ConfiguracoesPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Basic Info */}
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nome da Loja *</Label>
               <Input
@@ -250,6 +388,50 @@ function ConfiguracoesPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nome da sua loja"
               />
+            </div>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label htmlFor="slug">Slug da Loja *</Label>
+                <p className="text-xs text-muted-foreground">
+                  O slug é a parte da URL que identifica sua loja. Use apenas letras minúsculas, números e hífens.
+                </p>
+              </div>
+              <Input
+                id="slug"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                placeholder="slug-da-loja"
+                disabled={isCheckingSlug}
+              />
+              
+              {/* URL Preview */}
+              {slug && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Preview da URL:</p>
+                  <div className="flex items-center">
+                    <span className="text-xs text-muted-foreground">https://suavitrine.com/lojas/</span>
+                    <span className="text-xs font-mono font-semibold text-primary">
+                      {slug}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Status messages */}
+              {isCheckingSlug && (
+                <p className="text-xs text-muted-foreground">
+                  Verificando disponibilidade...
+                </p>
+              )}
+              {slugError && (
+                <p className="text-xs text-destructive">{slugError}</p>
+              )}
+              {!isCheckingSlug && !slugError && slugAvailable === true && slug && slug !== store?.slug && (
+                <p className="text-xs text-green-600">
+                   ✓ Slug disponível
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -319,8 +501,9 @@ function ConfiguracoesPage() {
                 <Input
                   id="phoneNumber"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
                   placeholder="(00) 00000-0000"
+                  maxLength={15}
                 />
               </div>
 
@@ -339,12 +522,21 @@ function ConfiguracoesPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="instagram">Instagram</Label>
-                <Input
-                  id="instagram"
-                  value={instagram}
-                  onChange={(e) => setInstagram(e.target.value)}
-                  placeholder="@sua_loja"
-                />
+                <div className="relative">
+                  <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground z-10" />
+                  <span className="absolute left-9 top-1/2 -translate-y-1/2 text-primary font-medium text-sm pointer-events-none">@</span>
+                  <Input
+                    id="instagram"
+                    value={instagram.replace(/@/g, '')}
+                    onChange={(e) => {
+                      // Remove qualquer '@' que o usuário tentar inserir
+                      const value = e.target.value.replace(/@/g, '')
+                      setInstagram(value)
+                    }}
+                    placeholder="sua_loja"
+                    className="pl-14"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -352,8 +544,19 @@ function ConfiguracoesPage() {
                 <Input
                   id="facebook"
                   value={facebook}
-                  onChange={(e) => setFacebook(e.target.value)}
-                  placeholder="https://facebook.com/sua-loja"
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setFacebook(value)
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value
+                    const extractedSlug = extractFacebookSlug(value)
+                    if (extractedSlug) {
+                      setFacebook(extractedSlug)
+                      toast.info('URL do Facebook formatada. Apenas o nome da página foi salvo.')
+                    }
+                  }}
+                  placeholder="minha-loja"
                 />
               </div>
             </div>
@@ -400,8 +603,9 @@ function ConfiguracoesPage() {
                 <Input
                   id="zipCode"
                   value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
+                  onChange={(e) => setZipCode(formatZipCode(e.target.value))}
                   placeholder="00000-000"
+                  maxLength={9}
                 />
               </div>
             </div>
@@ -411,73 +615,10 @@ function ConfiguracoesPage() {
           <div className="flex justify-end">
             <Button
               onClick={handleSave}
-              disabled={updateStoreMutation.isPending || !name.trim()}
+              disabled={updateStoreMutation.isPending || !name.trim() || !slug.trim() || isCheckingSlug || slugAvailable === false}
             >
               {updateStoreMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Appearance Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <SettingsIcon className="size-5" />
-            Aparência
-          </CardTitle>
-          <CardDescription>
-            Personalize a aparência da interface
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="flex items-start gap-4">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                {theme === 'dark' ? (
-                  <Moon className="size-5" />
-                ) : (
-                  <Sun className="size-5" />
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="dark-mode" className="text-base font-medium">
-                  Modo Escuro
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Alterne entre tema claro e escuro
-                </p>
-              </div>
-            </div>
-            <Switch
-              id="dark-mode"
-              checked={theme === 'dark'}
-              onCheckedChange={toggleTheme}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Info Card */}
-      <Card className="border-primary/50 bg-primary/5">
-        <CardContent className="pt-6">
-          <div className="flex gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              {theme === 'dark' ? (
-                <Moon className="size-5" />
-              ) : (
-                <Sun className="size-5" />
-              )}
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">
-                Tema atual: {theme === 'dark' ? 'Escuro' : 'Claro'}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                A preferência de tema é salva localmente e será aplicada em
-                todas as páginas do sistema.
-              </p>
-            </div>
           </div>
         </CardContent>
       </Card>
